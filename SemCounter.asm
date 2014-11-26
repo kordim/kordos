@@ -1,98 +1,59 @@
-; В IPC kordos входят следующие вызовы
+.MACRO SemCounter_Up_byAddr
 
-; IPC_Send    - посылка сообщения
-; IPC_Recv    - получение сообщения
-; IPC_SemUp   - Проверка и установка семафора
-; IPC_SemDown - Снятие семафора
+PUSH ZL
+PUSH ZH
 
 
-; Семафоры
-; Количество семафоров жёстко задано в коде. никаких вызовов для их создания
-
-; Структура для хранения семафоров
-; 1 байт для хранения значения семафора
-; 1 байт для хранения максимального значения семафора
-
-.MACRO CALL_SemUp   
-    CLI
-    PUSH R16
-    LDI  R16, @0
-    CALL IPC_SemUp
-    POP  R16
+POP ZH
+POP ZL
 .ENDM
 
-.MACRO CALL_SemDown
-    CLI
-    PUSH R16
-    LDI  R16, @0
-    CALL IPC_SemDown
-    POP  R16
-.ENDM
-
-
-.MACRO IPC_SEMUP
-IPC_SemUp:                    ; Preconditions: Номер семафора хранится в R16
-    CLI
-    PUSH ZL                   ; расчищаем регистры для работы
-    PUSH ZH
-    
-    LSL   R16                 ; умножаем номер семафора на 2
-    
-    LDIZ  Semaphores          ; Загружаем семафор, берём адрес начала области памяти с семафорами и прибавляем смещение из R16 
-    ADD   ZL  , R16
-    LDI   R16 , 0
-    ADC   ZH  , R16
+.MACRO IPC_semCounter_Up			  ; semaphore with counter. semaphore address  in Z register  
+.DEF sem_limit = R17
+.DEF sem_value = R16
+	CLI
+	PUSH sem_value
+	PUSH sem_limit
+    LD   sem_limit , Z+		      ; максимальное значение семафора
 
 IPC_semup_load_and_test:
-    LD    R16 , Z                  ; Значение семафора
-    CPI   R16 , 0
+	LD   sem_value , Z	          ; текущее значение семафора   
+    CP   sem_value , sem_limit
     
-    BREQ  IPC_semup_set            ; Если семафор не взведён ,до максимального уровня  то прерываем задачу и отдаём управление ядру
-    TaskBreak
-    RJMP  IPC_semup_load_and_test  ; После возврата из ядра идём опять в проверку семафора
-    SBR   R16                      ; Если семафор не равен максимальному уровню то есть меньше его ( не вижу причин для его превышения) то инкрементим его и RETI
-   
-    ST    Z  , R16            ; сохраняем значение семафора обратно в память
-    
-    POP ZH
-    POP ZL
+    BRNE IPC_semup_set            ; Если значение < макс. то увеличиваем счётчик семафора
+    RJMP TaskBreak				  ; Если значение == макс. то переходим к ожиданию. отдаём управление в ядро
+    RJMP IPC_semup_load_and_test  ; После возврата из ядра идём опять в проверку семафора
 
-IPC_SemUpReti:    
-    RETI
+	IPC_semup_set:
+	INC  sem_value                ; Если семафор < макс. ( не вижу причин для его превышения) то инкрементим его и RETI
+    ST   Z  , sem_value           ; сохраняем значение семафора обратно в память
+    
+ IPC_SemUpReti:    
+    POP  sem_limit
+	POP  sem_value
+	RETI
+.UNDEF sem_limit
+.UNDEF sem_value
 .ENDM
 
-.MACRO IPC_SEMDOWN
-IPC_SemDown:                  ; Preconditions: Номер семафора хранится в R16
-    CLI
-    PUSH ZL                   ; расчищаем регистры для работы
-    PUSH ZH
-    PUSH R17
+.MACRO IPC_semCounter_Down
+.DEF sem_value = R16
+	
+	CLI
+	PUSH sem_value
+	LD   sem_value , Z+			; не используется при опускании семафора, но загрузить байт быстрее чем сдвинуть адрес
+	LD   sem_value , Z			 ; текущее значение семафора   
+    CPI  sem_value , 0
+    BREQ IPC_semDown_reti    ; Если значение == 0 то просто выходим
+    DEC  sem_value                 ; Уменьшаем счётчик семафора
+    ST   Z  , sem_value            ; сохраняем значение семафора обратно в память
     
-    LSL   R16                 ; умножаем номер семафора на 2
-    
-    LDIZ  Semaphores          ; Загружаем семафор, берём адрес начала области памяти с семафорами и прибавляем смещение из R16 
-    ADD   ZL  , R16
-    LDI   R16 , 0
-    ADC   ZH  , R16
-    
-    LD    R16 , Z+            ; Значение семафора
-    LD    R17 , Z             ; максимальное значение семафора
-    CPI   R16 , 0
-    BREQ  IPC_SemDownReti     ; Если семафор уже взведён до максимального уровня  то прерываем задачу и отдаём управление ядру
-    DEC   R16                 ; Если семафор не равен максимальному уровню то есть меньше его ( не вижу причин для его превышения) то инкрементим его и RETI
-    
-    SUBI  ZL                  ; смещаем адрес в регистре Z на 1 байт назад, чтобы он показывал на байт со значением семафора
-    LDI   R17, 0
-    SBCI  ZH , R17
-    
-    ST    Z  , R16            ; сохраняем значение семафора обратно в память
-    
-    POP R17                   ; Восстанавливаем регистры
-    POP ZH
-    POP ZL
+ IPC_semDown_reti:    
+    POP  sem_value
+	RETI
 
-IPC_SemDownReti:    
-    RETI
+.UNDEF sem_value
 .ENDM
+
 
 
