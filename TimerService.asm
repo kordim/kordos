@@ -1,3 +1,4 @@
+; Переделать с учётом кольцевой структуры данных задачи
 .MACRO TimerService
 TimerService_Start:
                 LDI R16, MAXPROCNUM
