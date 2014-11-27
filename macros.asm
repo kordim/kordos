@@ -1,4 +1,8 @@
-
+.MACRO outi	
+	LDI 	R16,@1
+	OUT 	@0,R16 
+.ENDMACRO		
+				
 .MACRO LDIZ
     LDI ZL, low(@0)
     LDI ZH, high(@0)

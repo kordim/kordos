@@ -23,12 +23,16 @@
     SEI
 .ENDM
 
-
+; Preconditions:
+; Semaphore addres in Z register
+; Semaphore value to set in register R16
 .MACRO IPC_semByte_Up
-.DEF temp = R16
+.DEF value = R16
+.DEF temp  = R17
 IPC_semByte_Up:                    
     CLI
     PUSH temp
+    PUSH value
 
 IPC_semByte_Up_check:
     LD    temp , Z                 ; Загрузили значение семафора
@@ -38,12 +42,13 @@ IPC_semByte_Up_check:
     RJMP  IPC_semByte_Up_check     ; После возврата из ядра идём опять в проверку семафора
 
 IPC_semByte_Up_set:
-    SBR   temp                      
-    ST    Z  , temp
+    ST    Z  , value
     
+    POP value
     POP temp
     RETI
 .UNDEF temp
+.UNDEF value
 .ENDM
 
 
@@ -69,4 +74,4 @@ IPC_semByte_Down_return:
 .UNDEF temp
 .ENDM
 
-
+                
