@@ -1,22 +1,34 @@
 .MACRO TaskLoad
-TaskLoadStart:                    ; Запуск загрузчика задач
-        LDS R16, currentTaskNumber
+.DEF taskNumber      = R16
+.DEF taskState       = R17
+.DEF taskFrameAddr_L = XL
+.DEF taskFrameAddr_H = XH
+.DEF taskFrameAddr   = X
+TaskLoadStart:                         
+        LDS  taskNumber      , currentTaskNumber
+       
+        MOV tmp             , taskNumber
+        LDI tmp1            , FRAMESIZE
+        MUL tmp             , tmp1
+        LDS taskFrameAddr_L , low(TaskFrame) 
+        LDS taskFrameAddr_H , high(TaskFrame)
+        ADD taskFrameAddr_L , R1
+        ADD taskFrameAddr_H , R0
+ 
 
-NextTask:                          ; Итерация цикла обработки задач
-        DEC R16
-        STS currentTaskNumber, R16 ; перед запуском сохраним номер задачи в память
+NextTask:                                  ; Итерация цикла обработки задач
+        DEC  taskNumber
+        STS  currentTaskNumber, taskNumber ; перед запуском сохраним номер задачи в память
         BRCS RefreshTaskQueue
         
-        LDIX taskStateRegister 
-        ADD XL, R16
-        ADC XH, 0
-        LD R17, X                  ; Регистр состояния теперь лежит в R17
-
-        SBRC R17, taskWaitInt      ; если задача ждёт прерывания то и пускай ждёт, вызывать мы её не будем 
+        LD   taskState , taskFrameAddr     ; Регистр состояния теперь лежит в R17
+        
+        SBRC taskState , taskWaitInt       ; если задача ждёт прерывания то и пускай ждёт, вызывать мы её не будем 
         RJMP NextTask
 
-        SBRC R17, taskTimerIsZero ; если таймер не 0 то берём следующую задачу
+        SBRC taskState, taskTimerIsZero ; если таймер не 0 то берём следующую задачу
         RJMP LoadTask
+        
         RJMP NextTask
 ;
 ; -----------------------------------------------------------------------------------------------------------------------
@@ -25,12 +37,12 @@ LoadTask:                          ; Восстанавливаем состоя
         MOV  R20 , R16             ; копируем номер задачи для будущих вычислений смещений
         LSL  R20                   ; умножили на 2 предполагается что задач будет мало (меньше 128)
         
-        SBRC R17, taskRun          ; если задача не выполняется то скипаем след строку (запускаем задачу заново)
+        SBRC taskState, taskRun    ; если задача не выполняется то скипаем след строку (запускаем задачу заново)
         RJMP TaskWake              ; если выполняется, то будим программу
         
-TaskRun:                           ; То что мы делаем при первом запуске задачи
-        ORI  R17 , 1<<taskRun      ; Взводим флаг taskRun и сохраним регистр состояния 
-        ST   X   , R17
+                                   ; Первый запуск программы а не wake
+        ORI  taskState     , 1<<taskRun      ; Взводим флаг taskRun и сохраним регистр состояния 
+        ST   taskFrameAddr , taskState
         
         LDIX defaultStackAddress   ; установить голову стека задачи по дефолтному для задачи адресу
         ADD  XL  , R20
@@ -56,7 +68,7 @@ TaskWake:
         LoadContext
 
 TaskFinished:
-        LDS R16, currentTaskNumber
+        LDS taskNumber, currentTaskNumber
         LDIX taskStateRegister 
         ADD XL, R16
         ADC XH, 0
