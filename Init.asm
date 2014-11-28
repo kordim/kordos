@@ -1,7 +1,5 @@
 .INCLUDE MemoryAlloc.asm
 
-;    Setup Interrupt
-
 
 TaskFrame:        
 allocateTaskFrame ; allocate frames for MAXPROCNUM tasks (now 8) 
@@ -13,7 +11,7 @@ allocateTaskFrame
 allocateTaskFrame 
 allocateTaskFrame 
 
-;=========== Interrupt Vectors =====================================================================================			
+;=========== Interrupt Vectors 
 .CSEG 
 .ORG	0x0000				
 	RJMP 	Reset				
