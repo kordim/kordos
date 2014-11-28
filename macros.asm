@@ -23,3 +23,11 @@
 	
 	.UNDEF temp
 .ENDM
+
+.MACRO SUBI_X ; uses registers: R16, ZL, ZH
+	
+	SUBI XL   , low(@0)
+	SBCI XH   , high(@0)
+	
+.ENDM
+

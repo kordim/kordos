@@ -1,75 +1,97 @@
 ; Переделать с учётом кольцевой структуры данных задачи
 .MACRO TimerService
+.DEF taskFrameAddr_L = XL
+.DEF taskFrameAddr_H = XH
+.DEF taskFrameAddr   = X
+.DEF taskNumber      = R16
+.DEF taskState       = R17
+.DEF timer1          = R19
+.DEF timer2          = R20
+.DEF timer3          = R21
+.DEF timer4          = R22
+.DEF tmp             = R23
+.DEF tmp2            = R24
 
 TimerService_Start:
-    LDI R16, MAXPROCNUM
-    LDS XL,  low(TaskFrame)
-    LDS XH, high(TaskFrame)
-    ; Смещаемся на начало Фрейма последней задачи 
-    LDI R17 , MAXPROCNUM-1
-    LDI R18 , FRAMESIZE
-    MUL R18,R17
-    ADD XL,R1
-    ADD XH,R0
+    LDI taskNumber      , MAXPROCNUM
+    LDS taskFrameAddr_L , low(TaskFrame) ; Смещаемся на начало Фрейма последней задачи 
+    LDS taskFrameAddr_H , high(TaskFrame)
+    LDI tmp             , MAXPROCNUM-1
+    LDI tmp1            , FRAMESIZE
+    MUL tmp             , tmp1
+    ADD taskFrameAddr_L , R1
+    ADD taskFrameAddr_H , R0
 
-TimerService_NextTask:
-    DEC R16
+TimerService_processTask:
+    DEC  taskNumber
     BRCS TimerService_END ; Когда прощёлкали все таймеры выходим из таймерной службы
-    
-    
-    LD  R17 , X
-    
-    
-    LDI XL,  low( taskStateRegister )
-    LDI XH, high( taskStateRegister )
-    ADD XL, R16
-    ADC XH, 0
-    LD R17, X ; Регистр состояния теперь лежит в R17
 
-    SBRC R17, taskWaitInt
-    JMP TimerService_NextTask
+    LD  taskState , taskFrameAddr ; загрузили состояние задачи
     
-    SBRC R17, taskTimerIsZero
-    RJMP TimerService_NextTask
+    SBRC taskState , taskWaitInt   ; если задача ждёт прерывания то тикать не надо берём следующую задачу
+    RJMP TimerService_nextTask
+    
+    SBRC taskState , taskTimerIsZero ; если таймер уже 0 то тикать не надо берём следующую задачу
+    RJMP TimerService_nextTask
 
-    MOV R18, R16
-    MUL R18, taskTimerSize ; умножаем на 4
-    
-    LDI ZL,  low( taskTimer )
-    LDI ZH, high( taskTimer )
-    
-    ADD ZL, R1
-    ADC ZH, R0 ; в Z лежит адрес начала области с таймерами задачи
+    SUBI taskFrameAddr_L , low(-1)  ; сместились на 1 байт вперёд в стековом кадре, чтобы читать таймерые (см MemoryAlloc.asm )
+    SBCI taskFrameAddr_H , high(-1)
 
     ; загрузили таймер в регистры 4 байт должно хватить на ~50 дней
-    LD R19, Z+
-    LD R20, Z+
-    LD R21, Z+
-    LD R22, Z
+    LD timer1, taskFrameAddr+
+    LD timer2, taskFrameAddr+
+    LD timer3, taskFrameAddr+
+    LD timer4, taskFrameAddr
     
     ; Уменьшаем таймер
-    SUBI R22,1
-    SBCI R21,0
-    SBCI R20,0
-    SBCI R19,0
-
-    ; Проверяем на 0
-    MOV R23, R19
-    OR  R23, R20
-    OR  R23, R21
-    OR  R23, R22
+    SUBI timer4 , 1
+    SBCI timer3 , 0
+    SBCI timer2 , 0
+    SBCI timer1 , 0
     
-    CPI R23,0
-    BREQ TimerServiceSetZero   ; Если таймер == 0, то выставляем флаг в регистре состояния и сохраняем его 
-    RJMP TimerService_NextTask ; А если > 0 то просто переходим к следующей задаче
+    ST   timer4 , taskFrameAddr-
+    ST   timer3 , taskFrameAddr-
+    ST   timer2 , taskFrameAddr-
+    ST   timer1 , taskFrameAddr- ; после 4 декремента адреса он должен указывать на регистр состояния задачи
+    
+    ; Проверяем на 0
+    MOV  tmp , timer1
+    OR   tmp , timer2
+    OR   tmp , timer3
+    OR   tmp , timer4
+    
+    CPI  tmp , 0
+    BREQ TimerService_taskIsZero      ; Если таймер  > 0 то сохраняем таймер и выставляем бит taskTimeIsZero = 0  потоме переходим к следующей задаче
+    RJMP TimerService_taskNotZero
 
-TimerServiceSetZero:
-    ORI R17, 1<<taskTimerIsZero
-    ST X, R17
-    RJMP TimerService_NextTask
+TimerService_taskNotZero:
+    ORI  taskState , 0<<taskTimerIsZero ; Если таймер > 0, то выставляем флаг = 1 
+    RJMP TimerService_nextTask
+
+TimerService_taskIsZero:
+    ORI  taskState , 1<<taskTimerIsZero ; Если таймер == 0, то выставляем флаг в регистре состояния и сохраняем его 
+    RJMP TimerService_nextTask
+
+TimerService_nextTask:
+    ST   taskState , taskFrameAddr
+    SUBI taskFrameAddr_L , low(FRAMESIZE);
+    SBCI taskFrameAddr_H , high(FRAMESIZE);
+    RJMP TimerService_processTask
 
 TimerService_END:
     NOP
+
+.UNDEF taskFrameAddr_L
+.UNDEF taskFrameAddr_H
+.UNDEF taskFrameAddr  
+.UNDEF taskNumber     
+.UNDEF taskState      
+.UNDEF timer1         
+.UNDEF timer2         
+.UNDEF timer3         
+.UNDEF timer4         
+.UNDEF tmp            
+.UNDEF tmp2           
 
 .ENDM
 
