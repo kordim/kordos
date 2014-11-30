@@ -60,3 +60,6 @@ Reset:
      OUTI 	SPL,low(RAMEND)
 	OUTI 	SPH,high(RAMEND)
 
+	
+.DSEG
+taskStartAddress: .dw
