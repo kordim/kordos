@@ -27,7 +27,7 @@
 ; Mutex value to set in register R16
 
 .MACRO IPC_MutexUp
-    .DEF  temp        = R17
+    .DEF  temp = R17
     CLI
     PUSH  temp
     LD    temp , Z           ; Загрузили значение семафора
@@ -49,7 +49,7 @@ IPC_MutexSet:
 
 
 .MACRO IPC_MutexDown
-    .DEF  temp        = R17
+    .DEF  temp = R17
     CLI
     PUSH temp
 
