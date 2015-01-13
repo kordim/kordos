@@ -1,6 +1,6 @@
 ; Definitions and Sets
 .DEVICE ATmega323
-.SET MAXPROCNUM = 7 ; Tasks 0 - 7
+.SET MAXPROCNUM = 7 ; Summary 8 Tasks: 0,1,2,3,4,5,6,7
 
 ; Includes
 .NOLIST

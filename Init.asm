@@ -1,9 +1,7 @@
-.INCLUDE MemoryAlloc.asm
-
+; ============ Code Segment
 .DSEG ; Allocate RAM
 
 ; Allocate Memory for Tasks Stacks
-
 .SET FRAMESIZE = 80
 TaskFrame:        
 Task1: .byte FRAMESIZE
@@ -94,7 +92,7 @@ int20buf: .byte 1
 	RETI
 
 ; Put start addreses of tasks in Code segment 
-.ORG TasksBeginTable
+TaskDefaultBegin:
     .dw Task1_Begin
     .dw Task2_Begin
     .dw Task3_Begin
