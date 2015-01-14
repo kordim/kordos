@@ -1,25 +1,31 @@
+; Мьютексы могу принимать любое значение. 0 - значит он опущен, >0 поднят
 .MACRO CALL_MutexUp   
-    CLI
     PUSH ZL
     PUSH ZH
+    PUSH R16
+    
     LDI  ZL , low(@0)
     LDI  ZH , high(@0)
+    
+    LDI  R16, @1
     CALL IPC_MutexUp
+    
+    POP R16
     POP  ZH
     POP  ZL
-    SEI
 .ENDM
 
 .MACRO CALL_MutexDown
-    CLI
     PUSH ZL
     PUSH ZH
+    PUSH R16
     LDI  ZL , low(@0)
     LDI  ZH , high(@0)
+    LDI  R16, @1
     CALL IPC_MutexDown
+    POP R16
     POP  ZH
     POP  ZL
-    SEI
 .ENDM
 
 ; Preconditions:
@@ -27,8 +33,8 @@
 ; Mutex value to set in register R16
 
 .MACRO IPC_MutexUp
-    .DEF  temp = R17
-    CLI
+    .DEF  temp  = R17
+    .DEF  value = R16
     PUSH  temp
     LD    temp , Z           ; Загрузили значение семафора
 
@@ -40,24 +46,23 @@ IPC_MutexCheckUp:
     RJMP  IPC_MutexCheckUp   ; После возврата из ядра идём опять в проверку семафора
 
 IPC_MutexSet:
-    LDI   temp , 1
-    ST    Z  , temp
+    ST    Z  , value
     POP   temp
-    RETI
+    RET
     .UNDEF temp
+    .UNDEF value
 .ENDM
 
 
 .MACRO IPC_MutexDown
     .DEF  temp = R17
-    CLI
     PUSH temp
 
 IPC_MutexCheckDown:
     LD    temp , Z          ; Загрузили значение семафора
-    CPI   temp , 1          ; Проверили взведен ли флаг
+    CPI   temp , 0          ; Проверили взведен ли флаг
     
-    BREQ  IPC_MutexClear       ; Если семафор поднят то опускаем флаг
+    BRNE  IPC_MutexClear       ; Если семафор поднят то опускаем флаг
     RJMP  IPC_MutexDown_Ret    ; Если семафор опущен то возврат
 
 IPC_MutexClear:
@@ -66,7 +71,7 @@ IPC_MutexClear:
 
 IPC_MutexDown_Ret:
     POP   temp
-    RETI
+    RET
     .UNDEF temp
 .ENDM
 

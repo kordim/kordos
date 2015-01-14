@@ -3,15 +3,25 @@
 
 ; Allocate Memory for Tasks Stacks
 .SET FRAMESIZE = 80
+; Регистр состояния задачи                               1 байт  
+; Таймер задачи                                          4 байта
+; Адрес верхушки стека                                   2 байта
+; Адрес возврата в задачу                                2 байта
+; Буфер входящих сообщений                               1 байт
+; Мьютекс буфера входящих сообщений + адрес отправителя  1 байт
+; Буфер прерывания                                       1 байт
+; мьютекс прерывания + id прерывания                     1 байт  	
+; Data                                                   FRAMESIZE - 33 - 13 = 34 байта
+; Stack                                                  33 byte
 TaskFrame:        
-Task1: .byte FRAMESIZE
-Task2: .byte FRAMESIZE
-Task3: .byte FRAMESIZE
-Task4: .byte FRAMESIZE
-Task5: .byte FRAMESIZE
-Task6: .byte FRAMESIZE
-Task7: .byte FRAMESIZE
-Task8: .byte FRAMESIZE
+Task1_state: .byte FRAMESIZE
+Task2_state: .byte FRAMESIZE
+Task3_state: .byte FRAMESIZE
+Task4_state: .byte FRAMESIZE
+Task5_state: .byte FRAMESIZE
+Task6_state: .byte FRAMESIZE
+Task7_state: .byte FRAMESIZE
+Task8_state: .byte FRAMESIZE
 
 ; Alocate Memory for mutexes
 Mutex1: .byte 1
@@ -92,15 +102,25 @@ int20buf: .byte 1
 	RETI
 
 ; Put start addreses of tasks in Code segment 
-TaskDefaultBegin:
-    .dw Task1_Begin
-    .dw Task2_Begin
-    .dw Task3_Begin
-    .dw Task4_Begin
-    .dw Task5_Begin
-    .dw Task6_Begin
-    .dw Task7_Begin
-    .dw Task8_Begin
+taskStartAddress:
+    .dw Task1_Start
+    .dw Task2_Start
+    .dw Task3_Start
+    .dw Task4_Start
+    .dw Task5_Start
+    .dw Task6_Start
+    .dw Task7_Start
+    .dw Task8_Start
+
+DefaultTimer:
+    .db Task1_Timer
+    .db Task2_Timer
+    .db Task3_Timer
+    .db Task4_Timer
+    .db Task5_Timer
+    .db Task6_Timer
+    .db Task7_Timer
+    .db Task8_Timer
 
 Reset:
      OUTI 	SPL,low(RAMEND)

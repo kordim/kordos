@@ -1,5 +1,4 @@
 .MACRO CALL_SemUp   
-    CLI
     PUSH ZL
     PUSH ZH
     LDI  ZL , low(@0)
@@ -7,11 +6,9 @@
     CALL IPC_SemUp
     POP  ZH
     POP  ZL
-    SEI
 .ENDM
 
 .MACRO CALL_SemDown
-    CLI
     PUSH ZL
     PUSH ZH
     LDI  ZL , low(@0)
@@ -19,13 +16,11 @@
     CALL IPC_SemDown
     POP  ZH
     POP  ZL
-    SEI
 .ENDM
 
 .MACRO IPC_SemUp			  ; semaphore with counter. semaphore address  in Z register  
     .DEF limit = R17
     .DEF value = R16
-    CLI
     PUSH value
     PUSH limit
     LD   limit , Z+		      ; максимальное значение семафора
@@ -40,14 +35,13 @@ IPC_SemInc:
     ST   Z  , value           ; сохраняем значение семафора обратно в память
     POP  limit
     POP  value
-    RETI
+    RET
     .UNDEF limit
     .UNDEF value
 .ENDM
 
 .MACRO IPC_SemDown
     .DEF value = R16
-    CLI
     PUSH value
     LD   value , Z+	 	 ; не используется при опускании семафора, но загрузить байт быстрее чем сдвинуть адрес
     LD   value , Z		 ; текущее значение семафора   
@@ -57,7 +51,7 @@ IPC_SemInc:
     ST   Z  , value       ; сохраняем значение семафора обратно в память
 IPC_SemDownRet:    
     POP  value
-    RETI
+    RET
     .UNDEF value
 .ENDM
 
