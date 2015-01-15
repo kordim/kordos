@@ -13,14 +13,15 @@
 .DEF tmp2            = R24
 
 TimerService_Start:
+    CALL SaveContext
     LDI taskNumber      , MAXPROCNUM
     LDS taskFrameAddr_L , low(TaskFrame) ; Смещаемся на начало Фрейма последней задачи 
     LDS taskFrameAddr_H , high(TaskFrame)
     LDI tmp             , MAXPROCNUM-1
     LDI tmp1            , FRAMESIZE
     MUL tmp             , tmp1
-    ADD taskFrameAddr_L , R1
-    ADD taskFrameAddr_H , R0
+    ADD taskFrameAddr_L , R0
+    ADD taskFrameAddr_H , R1
 
 TimerService_processTask:
     DEC  taskNumber

@@ -1,18 +1,22 @@
 ; ============ Code Segment
 .DSEG ; Allocate RAM
 
+; Выделяем байт для хранения номера выполняемой задачи
+currentTaskNumber: .byte 1
+
 ; Allocate Memory for Tasks Stacks
-.SET FRAMESIZE = 80
 ; Регистр состояния задачи                               1 байт  
 ; Таймер задачи                                          4 байта
 ; Адрес верхушки стека                                   2 байта
-; Адрес возврата в задачу                                2 байта
+; Адрес возврата в задачу                                2 байта 
 ; Буфер входящих сообщений                               1 байт
 ; Мьютекс буфера входящих сообщений + адрес отправителя  1 байт
 ; Буфер прерывания                                       1 байт
 ; мьютекс прерывания + id прерывания                     1 байт  	
 ; Data                                                   FRAMESIZE - 33 - 13 = 34 байта
 ; Stack                                                  33 byte
+
+.SET FRAMESIZE = 80
 TaskFrame:        
 Task1_state: .byte FRAMESIZE
 Task2_state: .byte FRAMESIZE
@@ -123,7 +127,7 @@ DefaultTimer:
     .db Task8_Timer
 
 Reset:
-     OUTI 	SPL,low(RAMEND)
-	OUTI 	SPH,high(RAMEND)
+     OUTI SPL , low(RAMEND)
+	OUTI SPH , high(RAMEND)
 
 	

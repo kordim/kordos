@@ -14,33 +14,26 @@
 
 TaskLoader_Init:
         CLI
-        OUTI 	SPL,low(RAMEND)
-	   OUTI 	SPH,high(RAMEND)
         LDI taskNumber , MAXPROCNUM
-        STS currentTaskNumber , taskNumber    ; 8 in currentTaskNumber 
+        STS currentTaskNumber , taskNumber
 
-TaskLoader_Start:
-        LDS  taskNumber , currentTaskNumber ; загрузили номер текущей задачи 
+;TaskLoader_Start:
+;        LDS  taskNumber , currentTaskNumber ; загрузили номер текущей задачи 
        
 TaskLoader_Next:                                  ; Итерация цикла обработки задач
         DEC  taskNumber        ; R16=7 (8-1)
         BRCS TaskLoader_Init
-        STS  currentTaskNumber , taskNumber ; перед запуском сохраним номер задачи в память
-        
+        STS currentTaskNumber , taskNumber ; перед запуском сохраним номер задачи в память
         MOV tmp             , taskNumber         ; считаем смещение чтобы утановить стековый кадр
         LDI tmp1            , FRAMESIZE
-        MUL tmp             , tmp1
-        
         LDI taskFrameAddr_L , low(TaskFrame) 
         LDI taskFrameAddr_H , high(TaskFrame)
-        ADD taskFrameAddr_L , R1
-        ADC taskFrameAddr_H , R0
-
+        MUL tmp             , tmp1
+        ADD taskFrameAddr_L , R0
+        ADC taskFrameAddr_H , R1 ; посчитали адрес смещения до  контекста задачи
         LD   taskState , taskFrameAddr     ; Регистр состояния теперь лежит в R17
-        
         SBRC taskState , taskWaitInt       ; если задача ждёт прерывания то и пускай ждёт, вызывать мы её не будем 
         RJMP TaskLoader_Next
-
         SBRC taskState, taskTimerIsZero ; если таймер не 0 проверяем таймер следующей задачи.
         RJMP TaskLoader_Load            ; если таймер == 0 то запускаем программу. либо сначала, либо с того места где она прервалась
         RJMP TaskLoader_Next
@@ -48,6 +41,7 @@ TaskLoader_Next:                                  ; Итерация цикла 
 TaskLoader_Load:                   
         SBRC taskState, taskRun     ; если задача не выполняется то скипаем след строку (запускаем задачу заново)
         RJMP TaskLoader_WakeUp      ; если выполняется, то будим программу
+        
         ORI  taskState , 1<<taskRun ; Не выполняется. Взводим флаг taskRun и сохраним регистр состояния 
         ST   taskFrameAddr , taskState
         
@@ -56,52 +50,52 @@ TaskLoader_Load:
         OUT  SPL , taskFrameAddr_L
         OUT  SPH , taskFrameAddr_H               
 
-        ; загружаем адрес старта задачи
+        ; загружаем адрес старта задачи чтобы вызвать задачу
         LDI ZL                ,  low(taskStartAddress*2)
         LDI ZH                , high(taskStartAddress*2)
         MOV tmp               , taskNumber
-        LDI tmp1              , 2
-        MUL tmp               , tmp1
-
-        ADD ZL                , R1
-        ADC ZH                , R0
-        LPM tmp               , Z+
-        LPM tmp1              , Z
+        
+        LSL tmp             ; умножаем номер таска на 2 чтобы учесть двухбайтовую природу адресации
+        ADD ZL tmp
+        BRCC add_8
+        INC ZH
+        add_8:
+        
+        LPM tmp               , Z+ ; MSD
+        LPM tmp1              , Z  ; LSD
+        
         PUSH tmp1             ; пихаем  Z в стек и прыгаем в задачу
-        PUSH tmp
+        PUSH tmp              
         RETI
 
-        ; Вот тут я возвращаюсь из задачи, указатель стека смотрит на стек задачи
-        ; Чо происходит хуй знает В регистрах днные от задачи.
-        ; Надо установить голову стека,
-        ; вернуть взад все регистры оси и прыгнуть на TaskLoader_TaskExit
-
-
-        OUTI 	SPL,low(RAMEND) ; Ставим стек на место
-	   OUTI 	SPH,high(RAMEND)
-        
-        ; Восстанавливаем регистры
-
+        ; Вот тут я возвращаюсь из задачи
         RJMP TaskLoader_TaskExit ; Прыгаем таки на выход из задачи
 
 TaskLoader_WakeUp:
-        SUBI taskFrameAddr_L , low(-8)  ; установить голову стека задачи ( это конец стекового кадра )
-        SBCI taskFrameAddr_H , high(-8) ; загрузили адрес по которому лежит адрес головы стека запущенного таска
-        OUT  SPL , taskFrameAddr_L
-        OUT  SPH , taskFrameAddr_L
-        LoadContext
+        SUBI taskFrameAddr_L , low(-5)  ; установить голову стека задачи ( это конец стекового кадра )
+        SBCI taskFrameAddr_H , high(-5) ; загрузили адрес по которому лежит адрес головы стека запущенного таска
+        
+        LD Z+, R17 ; High byte of address
+        LD Z,  R16 ; Low byte of address
+
+        OUT  SPH , R17
+        OUT  SPL , R16
+        LoadContextMacro
 
 TaskLoader_TaskExit:
         ; Что делается когда задача завершилась?
         ; Снимаем флаг выпонения!!! 
+        LDS  taskNumber , currentTaskNumber ; загрузили номер текущей задачи, после выполнения задачи, все регистры сбились к хуям поэтому восстанавливаем из оперативы.
+                                            ; ибо возиться с устанокой головы стека пушить и попить как то долго и грустно
+        
         STS currentTaskNumber , taskNumber ; перед запуском сохраним номер задачи в память
         MOV tmp               , taskNumber         ; считаем смещение чтобы утановить стековый кадр
         LDI tmp1              , FRAMESIZE
         MUL tmp               , tmp1
         LDI taskFrameAddr_L   , low(TaskFrame) 
         LDI taskFrameAddr_H   , high(TaskFrame)
-        ADD taskFrameAddr_L   , R1
-        ADC taskFrameAddr_H   , R0
+        ADD taskFrameAddr_L   , R0
+        ADC taskFrameAddr_H   , R1
         LD  taskState         , X     ; Регистр состояния теперь лежит в R17
         ORI taskState         , 0<<taskRun      ; Снимаем флаг taskRun 
         ST  X+                , taskState
@@ -113,8 +107,8 @@ TaskLoader_TaskExit:
 
         LDI ZL                , low(DefaultTimer*2)
         LDI ZH                , high(DefaultTimer*2)
-        ADD ZL                , R1
-        ADC ZH                , R0
+        ADD ZL                , R0
+        ADC ZH                , R1
         LPM tmp               , Z
         
         CLR tmp1
@@ -126,8 +120,7 @@ TaskLoader_TaskExit:
         RJMP interruptServiceStart ; Уходим в обработчик прерываний. А из него обратно в загрузчик задча
 
 TaskBreak:                         ; если задача передала управление ядру по любой причине кроме exit то мы попадаем сюда ведь задача должна просто немного подождать
-      SaveContext
-      RJMP TaskLoader_Next
+        RJMP TaskLoader_Next
 
 
 

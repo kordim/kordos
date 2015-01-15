@@ -1,4 +1,4 @@
-.MACRO outi	
+.MACRO OUTI	
 	LDI 	R16,@1
 	OUT 	@0,R16 
 .ENDMACRO		

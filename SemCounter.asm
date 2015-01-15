@@ -28,6 +28,7 @@ IPC_SemUpCheck:
     LD   value , Z	          ; текущее значение семафора   
     CP   value , limit
     BRNE IPC_SemInc      ; Если значение < макс. то увеличиваем счётчик семафора
+    CALL SaveContextBySelf
     RJMP TaskBreak	     ; Если значение == макс. то переходим к ожиданию. отдаём управление в ядро
     RJMP IPC_SemUpCheck  ; После возврата из ядра идём опять в проверку семафора
 IPC_SemInc:
@@ -55,5 +56,5 @@ IPC_SemDownRet:
     .UNDEF value
 .ENDM
 
-
+.
 
