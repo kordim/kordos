@@ -13,7 +13,7 @@
 .DEF tmp2            = R24
 
 TimerService_Start:
-    CALL SaveContext
+    CALL SaveContextByInterrupt
     LDI taskNumber      , MAXPROCNUM
     LDS taskFrameAddr_L , low(TaskFrame) ; Смещаемся на начало Фрейма последней задачи 
     LDS taskFrameAddr_H , high(TaskFrame)
