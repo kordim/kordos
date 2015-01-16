@@ -1,5 +1,2 @@
-.
 .MACRO IntService
-
-
 .ENDM

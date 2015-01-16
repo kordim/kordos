@@ -117,14 +117,14 @@ taskStartAddress:
     .dw Task8_Start
 
 DefaultTimer:
-    .db Task1_Timer
-    .db Task2_Timer
-    .db Task3_Timer
-    .db Task4_Timer
-    .db Task5_Timer
-    .db Task6_Timer
-    .db Task7_Timer
-    .db Task8_Timer
+Task1_Timer: .db 10
+Task2_Timer: .db 10
+Task3_Timer: .db 10
+Task4_Timer: .db 10
+Task5_Timer: .db 10
+Task6_Timer: .db 10
+Task7_Timer: .db 10
+Task8_Timer: .db 10
 
 Reset:
      OUTI SPL , low(RAMEND)

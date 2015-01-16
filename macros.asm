@@ -31,3 +31,6 @@
 	
 .ENDM
 
+.MACRO EXIT
+    JMP TaskLoader_TaskExit
+.ENDM
