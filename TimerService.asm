@@ -17,17 +17,17 @@ TimerService_Start:
     LDI taskNumber      , MAXPROCNUM
     LDS taskFrameAddr_L , low(TaskFrame) ; Смещаемся на начало Фрейма последней задачи 
     LDS taskFrameAddr_H , high(TaskFrame)
-    LDI tmp             , MAXPROCNUM-1
-    LDI tmp1            , FRAMESIZE
-    MUL tmp             , tmp1
-    ADD taskFrameAddr_L , R0
-    ADD taskFrameAddr_H , R1
+    LDI tmp             , (MAXPROCNUM-1)*FRAMESIZE
+    ADD taskFrameAddr_L , tmp
+    SBRC SREG , 0
+    INC taskFrameAddr_H
+    
 
 TimerService_processTask:
     DEC  taskNumber
     BRCS TimerService_END ; Когда прощёлкали все таймеры выходим из таймерной службы
 
-    LD  taskState , taskFrameAddr ; загрузили состояние задачи
+    LD  taskState , X ; загрузили состояние задачи
     
     SBRC taskState , taskWaitInt   ; если задача ждёт прерывания то тикать не надо берём следующую задачу
     RJMP TimerService_nextTask
@@ -39,10 +39,10 @@ TimerService_processTask:
     SBCI taskFrameAddr_H , high(-1)
 
     ; загрузили таймер в регистры 4 байт должно хватить на ~50 дней
-    LD timer1, taskFrameAddr+
-    LD timer2, taskFrameAddr+
-    LD timer3, taskFrameAddr+
-    LD timer4, taskFrameAddr
+    LD timer1, X+
+    LD timer2, X+
+    LD timer3, X+
+    LD timer4, X
     
     ; Уменьшаем таймер
     SUBI timer4 , 1
@@ -50,10 +50,10 @@ TimerService_processTask:
     SBCI timer2 , 0
     SBCI timer1 , 0
     
-    ST   timer4 , taskFrameAddr-
-    ST   timer3 , taskFrameAddr-
-    ST   timer2 , taskFrameAddr-
-    ST   timer1 , taskFrameAddr- ; после 4 декремента адреса он должен указывать на регистр состояния задачи
+    ST   timer4 , X-
+    ST   timer3 , X-
+    ST   timer2 , X-
+    ST   timer1 , X- ; после 4 декремента адреса он должен указывать на регистр состояния задачи
     
     ; Проверяем на 0
     MOV  tmp , timer1
@@ -74,7 +74,7 @@ TimerService_taskIsZero:
     RJMP TimerService_nextTask
 
 TimerService_nextTask:
-    ST   taskState , taskFrameAddr
+    ST   taskState , X
     SUBI taskFrameAddr_L , low(FRAMESIZE);
     SBCI taskFrameAddr_H , high(FRAMESIZE);
     RJMP TimerService_processTask
