@@ -62,7 +62,8 @@ TaskLoader_Load:
         ADD ZL , tmp
         SBRC SREG , 0 ; skip if C flag is clear
         INC ZH
-        
+        CLC
+
         ; ICALL ; минус вызова ICALL в том что нужно держать 2 байта в стеке для возврата сюда
                 ; Сделаю по другомуЖ запихну в стек адрес старта программы и сделаю RETI
                 ; Прыгну в задачу. В конце каждой задачи должно стоять EXIT ( это просто макрос для RJMP TaskLoader_TaskExit)
@@ -113,6 +114,7 @@ TaskLoader_TaskExit:
         ADD  ZL                , tmp
         SBRC SREG              , 0 ; skip if C flag is clear 
         INC  ZH
+        CLC
         LPM  tmp               , Z ; Дефолтное значение таймера лежит в tmp
         
         CLR  tmp1

@@ -1,58 +1,95 @@
-.MACRO IntService
+; Основная идея такова.
+; Вместо того чтобы тупо бегать по всем задачам просматривая не ждел ли она прерывание,
+; а потом бегать по всем прерываниям и смотреть произошло ли оно мы поступим по другому.
+;
+; Заведем Семафор со счётчиком (семафор очереди прерываний) IntQueueCounter
+; Заведем очередь, выделим для не 2*MAXPROCNUM байт
+;
+;
+; Когда задаче понадобиться встать на ожидание прерывания то она должна:
+; 1  Взвести флаг WaitForInt в своём регистре состояния
+; 2  Проверить семафор IntQueueCounter и сохранить его значение
+; 3  Вычислить адрес смещения IntQueueAddr+2*IntQueueCounter
+; 4  Записать по вычисленному адресу Номер задачи 
+; 5  В следующий байт записать код прерывания
+; 6  Проинкрементить IntQueueCounter
+;
+;
+;
+;  Что должен делать  Обработчик прерываний:
+;  1 Проверить IntQueueCounter
+;     IntQueueCounter == 0  :  exit
+;     IntQueueCounter  > 0  :  goto 2
+;  2  Вычисляем адрес смещения IntQueueAddr+2*IntQueueCounter
+;  3  IntQueueCounter++
+;  4  IntQueueCounter--
+;  5  IntQueueCounter == 0 ?
+;        Yes : goto  XXX ( Reset Queue Counter and Interrupt flags )
+;        No  :  goto 6
+;  6  Загрузить номер таска
+;  7  Загрузить номер прывания
+;  8  Проверить флаг прерывания (вычислить смещение, загрузить значение флага) 
+;        флаг == 0 :  goto 4
+;        флаг <> 0 :  goto 9
+;  9 загрузить значение прерывания
+;  10 вычислить адрес буфера прерывания таска
+;  11 записат туда значение прерывания
+;  12 Вычислить адрес регистра состояния таска
+;  13 Снять флаг Wait4Int таска
+;  14 goto 4
+;
+;  XXX : Очистка флагов срабатывания прерываний ( каждое прерывание имеет 1 байт для буфера значений и 1 байт для флага срабатывания)  (20*2) 40 байт 
 
-.DEF taskFrameAddr_L = XL
-.DEF taskFrameAddr_H = XH
-.DEF taskFrameAddr   = X
-.DEF taskNumber      = R16
-.DEF taskState       = R17
-.DEF timer1          = R19
-.DEF timer2          = R20
-.DEF timer3          = R21
-.DEF timer4          = R22
-.DEF tmp             = R23
-.DEF tmp2            = R24
+ 
+    .DEF taskNum         = R18
+    .DEF intNum          = R19
+    .DEF intFlag         = R20
+    .DEF intBuf          = R21
 
-IntServiceInit:
-    LDI taskNumber      , MAXPROCNUM
+IntServiceStart:
+IntServiceNext:
 
+    CLI
+    CALL_SemGetValue IntQueueCounter   ; Грузим в R16 число обозначающее длину очереди
+    CPI              R16 , 0     
+    BREQ             IntClearFlags     ; если очередь пуста, никто не ждёт прерываний. выходим и чистим флаги
+    CALL_SemDown     IntQueueCounter   ; Уменьшаем длину очереди на 1 
 
-IntService_nextTask:
-    DEC taskNumber
-    LDS taskFrameAddr_L , low(TaskFrame) ; Смещаемся на начало Фрейма задачи
-    LDS taskFrameAddr_H , high(TaskFrame)
-    MOV tmp             , taskNumber
-    LDI tmp1            , FRAMESIZE
-    MUL tmp , tmp1
-    ADD taskFrameAddr_L , R0
-    ADC taskFrameAddr_H , R1
-
-    BRCS IntService_END ; Когда прощёлкали все таймеры выходим из таймерной службы
-
-    LD  taskState , X ; загрузили состояние задачи
+    LDI_Z IntQueueAddr  ; Вычисляем адрес конца очереди 
+    LSL R16             ; Для этого значение счётчика с длиной очереди на 2 ( каждый элемент в очереди состоит из 2х байт)
+    ADD_Z_R16           ; Прибавляем длину очереди в байтах, к адресу начала очереди. Теперь Z указывает на верхушку стека
     
-    SBRS taskState , taskWaitInt   ; если задача не ждёт прерывания то ей и не надо впихивать их, переходим к следующей задаче
-    RJMP IntService_nextTask
+    IN  R16     , SPL   ;сохраняем текущее положение стека в оперативу ( 2 байта)
+    IN  R17     , SPH
+    STS tmp_SPL , R16          
+    STS tmp_SPH , R17
+    OUT SPL     , ZL    ; Устанавливаем голову cтека на хвост очереди 
+    OUT SPH     , ZH
+
+    pop taskNum
+    pop intNum
     
-    ; ОК задача ждёт прерывание сейчас надо взять мьютекс задачи, и определить номер прерывания которое ждёт задача 
-    SUBI taskFrameAddr_L , low(-TaskIntMutexShift)
-    SBCI taskFrameAddr_H , high(-TaskIntMutexShift)
+    ; Вычисляем адрес флага состояния прерывания и адрес буфера прерывания
+    ; InterruptFlag | InterruptBuffer
 
-    LD tmp , X  ; OK в X теперь  лежит содержимое мьютекса. Значение равно номеру поерывания которое нужно получить.
-                ; Проверяем флаг прерывания
-                ; Если прерывание сработало, 
-                ;    обнуляем мьютекс задачи, ( надо-ли? )
-                ; Загружаем данные из буфера прерывания в буфер задачи
-                ; Опускаем флаг задачи taskWaitInt
-                ; переходим к следующей задаче
+    MOV        R16     , intNum
+    LDI_Z      IntBufAddr     ; IntBufAddr адрес буферов и флагов для каждого прерывания
+    ADD_Z_R16                 ; Ок прибавили номер прерывания к адресу. Z показывает на байт с флагом
+    LD         intFlag , Z+
+    CP         intFlag , 0    ; Проверили флаг, если он равен 0 то прерывание не было получено, берём следующий запрос в очереди
+    BREQ       IntServiceNext ; Бляяя!!!!!!!!!!!!!!
+                              ; если задача запросила прерывание, а оно редкое и обработчик прерываний 
+                              ; запустился раньше чем пришло прерывание, то мы тупо теряем место в очереди!
+                              ; задача никогда не получит своё прерывание!
+                              ; Сууука!!!!
 
-    
 
 
-  
 
-IntService_END:
-CLI
-; очистить все флаги прерываний? или только те которые были проверены?
-SEI
 
-.ENDM
+IntProcFinish:
+
+
+
+
+

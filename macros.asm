@@ -3,32 +3,26 @@
 	OUT 	@0,R16 
 .ENDMACRO		
 				
-.MACRO LDIZ
+.MACRO LDI_Z
     LDI ZL, low(@0)
     LDI ZH, high(@0)
 .ENDM
 
-.MACRO LDIX
+.MACRO LDI_X
     LDI XL, low(@0)
     LDI XH, high(@0)
 .ENDM
 
-.MACRO Shift_Z ; uses registers: R16, ZL, ZH
-	.DEF temp , R16
-	
-	LDI  temp , @0
-	ADD  ZL   , temp
-	LDI  temp , 0
-	ADC  ZH   , temp
-	
-	.UNDEF temp
+.MACRO add_Z_R16 ; uses R16 register for
+    CLC
+    ADD  ZL   , R16        ; Прибавляем длину очереди в байтах, к адресу начала очереди
+    SBRC SREG , 0
+    INC  ZH
 .ENDM
 
 .MACRO SUBI_X ; uses registers: R16, ZL, ZH
-	
 	SUBI XL   , low(@0)
 	SBCI XH   , high(@0)
-	
 .ENDM
 
 .MACRO EXIT

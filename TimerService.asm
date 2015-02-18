@@ -21,7 +21,7 @@ TimerService_Start:
     ADD taskFrameAddr_L , tmp
     SBRC SREG , 0
     INC taskFrameAddr_H
-    
+    CLC 
 
 TimerService_processTask:
     DEC  taskNumber
