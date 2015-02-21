@@ -1,95 +1,93 @@
-; Основная идея такова.
-; Вместо того чтобы тупо бегать по всем задачам просматривая не ждел ли она прерывание,
-; а потом бегать по всем прерываниям и смотреть произошло ли оно мы поступим по другому.
-;
-; Заведем Семафор со счётчиком (семафор очереди прерываний) IntQueueCounter
-; Заведем очередь, выделим для не 2*MAXPROCNUM байт
-;
-;
-; Когда задаче понадобиться встать на ожидание прерывания то она должна:
-; 1  Взвести флаг WaitForInt в своём регистре состояния
-; 2  Проверить семафор IntQueueCounter и сохранить его значение
-; 3  Вычислить адрес смещения IntQueueAddr+2*IntQueueCounter
-; 4  Записать по вычисленному адресу Номер задачи 
-; 5  В следующий байт записать код прерывания
-; 6  Проинкрементить IntQueueCounter
-;
-;
-;
-;  Что должен делать  Обработчик прерываний:
-;  1 Проверить IntQueueCounter
-;     IntQueueCounter == 0  :  exit
-;     IntQueueCounter  > 0  :  goto 2
-;  2  Вычисляем адрес смещения IntQueueAddr+2*IntQueueCounter
-;  3  IntQueueCounter++
-;  4  IntQueueCounter--
-;  5  IntQueueCounter == 0 ?
-;        Yes : goto  XXX ( Reset Queue Counter and Interrupt flags )
-;        No  :  goto 6
-;  6  Загрузить номер таска
-;  7  Загрузить номер прывания
-;  8  Проверить флаг прерывания (вычислить смещение, загрузить значение флага) 
-;        флаг == 0 :  goto 4
-;        флаг <> 0 :  goto 9
-;  9 загрузить значение прерывания
-;  10 вычислить адрес буфера прерывания таска
-;  11 записат туда значение прерывания
-;  12 Вычислить адрес регистра состояния таска
-;  13 Снять флаг Wait4Int таска
-;  14 goto 4
-;
-;  XXX : Очистка флагов срабатывания прерываний ( каждое прерывание имеет 1 байт для буфера значений и 1 байт для флага срабатывания)  (20*2) 40 байт 
+.DEF taskNum            = R18
+.DEF intNum             = R19
+.DEF intFlag            = R20
+.DEF intBuf             = R21
 
- 
-    .DEF taskNum         = R18
-    .DEF intNum          = R19
-    .DEF intFlag         = R20
-    .DEF intBuf          = R21
 
 IntServiceStart:
+CLR R10                            ; R10 = ReturnPoolCounter
 IntServiceNext:
 
-    CLI
-    CALL_SemGetValue IntQueueCounter   ; Грузим в R16 число обозначающее длину очереди
-    CPI              R16 , 0     
-    BREQ             IntClearFlags     ; если очередь пуста, никто не ждёт прерываний. выходим и чистим флаги
-    CALL_SemDown     IntQueueCounter   ; Уменьшаем длину очереди на 1 
+CLI
 
-    LDI_Z IntQueueAddr  ; Вычисляем адрес конца очереди 
-    LSL R16             ; Для этого значение счётчика с длиной очереди на 2 ( каждый элемент в очереди состоит из 2х байт)
-    ADD_Z_R16           ; Прибавляем длину очереди в байтах, к адресу начала очереди. Теперь Z указывает на верхушку стека
-    
-    IN  R16     , SPL   ;сохраняем текущее положение стека в оперативу ( 2 байта)
-    IN  R17     , SPH
-    STS tmp_SPL , R16          
-    STS tmp_SPH , R17
-    OUT SPL     , ZL    ; Устанавливаем голову cтека на хвост очереди 
-    OUT SPH     , ZH
+CALL_SemGetValue IntPoolCounter    ; Загружаем длину очереди в R16
+CPI        R16 , 0                 ; Сравниваем длину очереди с нулём чтобы понять пуста ли она 
+BREQ       ClearInterruptFlags     ; Если очередь пуста, никто не ждёт прерываний. выходим и чистим флаги
+                    
+; Загружаем элемент из пула
+; =========================
+LDI_Z      IntPoolAddr             ; Вычисляем адрес конца очереди  IntPoolAddr + (2 * IntPoolCounter) + IntPoolState 
+                                   ; IntPoolCounter лежит в R16
+LSL        R16                     ; Умножаем IntPoolCounter на 2
+ADD_Z_R16                          ; Прибавляем 2*IntPoolCounter к смещению
+LSR        R16                     ; Делим обратно IntPoolCounter на 2 ( еще приголдится )
+;LDS        R16 , IntPoolState      ; Ну и наконец прибавляем к смещению "большое" смещение, состояние пула.
+;ADD_Z_R16                          ; прибавили =)
+                                   ; Адрес загружен
 
-    pop taskNum
-    pop intNum
-    
-    ; Вычисляем адрес флага состояния прерывания и адрес буфера прерывания
-    ; InterruptFlag | InterruptBuffer
+LD         R18 , Z+                ; R18 = task Number.      Номер задачи
+LD         R19 , Z                 ; R19 = Interrupt Number. Номер прерывания
 
-    MOV        R16     , intNum
-    LDI_Z      IntBufAddr     ; IntBufAddr адрес буферов и флагов для каждого прерывания
-    ADD_Z_R16                 ; Ок прибавили номер прерывания к адресу. Z показывает на байт с флагом
-    LD         intFlag , Z+
-    CP         intFlag , 0    ; Проверили флаг, если он равен 0 то прерывание не было получено, берём следующий запрос в очереди
-    BREQ       IntServiceNext ; Бляяя!!!!!!!!!!!!!!
-                              ; если задача запросила прерывание, а оно редкое и обработчик прерываний 
-                              ; запустился раньше чем пришло прерывание, то мы тупо теряем место в очереди!
-                              ; задача никогда не получит своё прерывание!
-                              ; Сууука!!!!
+; Check Interrupt flag
+; Если он 0, прерываний не было, возвращаем запрос в пул
+;=======================================================
+LDI_X     Int_1_Addr               ; Вычисляем смещение до буфера и флага прерываний
+MOV       R19 , R16                ; Copy Interrupt Number to tmp register 
+LSL       R16                      ; Уможили на 2
+ADD_X_R16                          ; Смещение получено
+
+LD        R21 , X+                 ; R21 = Interrupt Buffer Value. Загружаем значение из буфера
+LD        R20 , X                  ; R20 = Interrupt State Flag.   Загружаем флаг прерывания
+
+CPI       R19 , 0                  ; Interrupt Flag == 0 ?
+BREQ      ReturnToPool             ; Interrupf Flag == 0 : Return request back to Pool
+
+; Copy Interrupt Buffer to Task Buffer
+; Флаг срабатывания прерывания > 0
+; Нужно записать значение буфера прерывания в буфер задачи 
+; =========================================================
+LDI_Z     TaskFrame
+LDI       R16 , TaskIntBufShift
+ADD_Z_R16 
+LDI       R16 , FRAMESIZE
+
+MUL       R16, R18                 ; TaskNumber * FRAMESIZE (FRAMESIZE is a length of Task context)
+                                   ; R0 and R1 contain low anf High bytes of multiplicaton  results.
+CLC
+ADD       ZL , R0                  
+ADC       ZH , R1                  ; Z point to Task Interrupt Buffer
+
+ST        Z  , R21                 ; Store Interrupt Buffer value to Task Buffer
+
+; Mark Interrupt for Clearing
+; ===========================
+LDI       R16 , 2                  ; 0: no interrupnts ; 1: Interrupt appear ; 2 Interrupt processed and must be cleared
+ST        X   , R16
 
 
+; Get next Pool Request
+; =====================
+NextPoolRequest:
+CALL_SemDown     IntPoolCounter   ; Уменьшаем длину очереди на 1 
+RJMP IntServiceNext:
 
+; Return not  processed request back To Pool
+; ==========================================
+ReturnToPool:
+; SaveRequestToPool -> Increase ReturnPoolCounter -> NextPoolRequest
+; Get Address to Save 
 
+LDI_Z IntReturnedPoolAddr                  ; Вычисляем адрес для сохранения возврящённых значений
+MOV       R10 , R16                ; Copy R10=ReturnPoolCounter to R16=tmp 
+LSR       R16                      ; R16 *= 2
+ADD_Z_R16 
 
-IntProcFinish:
+ST        Z+  , R18                ; Save Task Number 
+ST        Z   , R19                ; Save Interrupt  Number
 
+INC R10                            ; Increase ReturnPoolCounter
+RJMP NextPoolRequest
 
-
-
+; Clearing processed Interrupt Flags 
+; And Copy From Returned Pool to Main Pool
 

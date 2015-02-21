@@ -12,7 +12,7 @@ currentTaskNumber: .byte 1
 .SET TaskRetAddrShift         = 7
 .SET TaskRecvBufMutexShift    = 9
 .SET TaskRecvBufShift         = 10
-.SET TaskIntMutexShift        = 11
+.SET TaskIntMutexShift        = 11 ; Obsolette need to remove
 .SET TaskIntBufShift          = 12
 
 ; Регистр состояния задачи                               1 байт   (+0)
@@ -36,40 +36,44 @@ Task4_state: .byte FRAMESIZE
 Task5_state: .byte FRAMESIZE
 Task6_state: .byte FRAMESIZE
 Task7_state: .byte FRAMESIZE
-Task8_state: .byte FRAMESIZE
+Task8_state: .byte FRAMESIZE ; == 640 bytes
 
 ; Alocate Memory for mutexes
-Mutex1: .byte 1
-Mutex2: .byte 1
-Mutex3: .byte 1
-Mutex4: .byte 1
-Mutex5: .byte 1
-Mutex6: .byte 1
-Mutex7: .byte 1
-Mutex8: .byte 1
+;Mutex1: .byte 1
+;Mutex2: .byte 1
+;Mutex3: .byte 1
+;Mutex4: .byte 1
+;Mutex5: .byte 1
+;Mutex6: .byte 1
+;Mutex7: .byte 1
+;Mutex8: .byte 1  ; == 8 byte
 
 ; Allocate Memory for Interrupt Buffers
-int1buf:  .byte 1
-int2buf:  .byte 1
-int3buf:  .byte 1
-int4buf:  .byte 1
-int5buf:  .byte 1
-int6buf:  .byte 1
-int7buf:  .byte 1
-int8buf:  .byte 1
-int9buf:  .byte 1
-int10buf: .byte 1
-int11buf: .byte 1
-int12buf: .byte 1
-int13buf: .byte 1
-int14buf: .byte 1
-int15buf: .byte 1
-int16buf: .byte 1
-int17buf: .byte 1
-int18buf: .byte 1
-int19buf: .byte 1
-int20buf: .byte 1         
+Int_1_Addr:  .byte 2
+Int_2_Addr:  .byte 2
+Int_3_Addr:  .byte 2
+Int_4_Addr:  .byte 2
+Int_5_Addr:  .byte 2
+Int_6_Addr:  .byte 2
+Int_7_Addr:  .byte 2
+Int_8_Addr:  .byte 2
+Int_9_Addr:  .byte 2
+Int_10_Addr: .byte 2
+Int_11_Addr: .byte 2
+Int_12_Addr: .byte 2
+Int_13_Addr: .byte 2
+Int_14_Addr: .byte 2
+Int_15_Addr: .byte 2
+Int_16_Addr: .byte 2
+Int_17_Addr: .byte 2
+Int_18_Addr: .byte 2
+Int_19_Addr: .byte 2
+Int_20_Addr: .byte 2 ; == 40 byte
 
+; Allocate Memory for Inerrupt Request Pool
+IntPoolCounter:               .byte 2
+IntPoolAddr:                  .byte 2*MAXPROCNUM ; == 36 byte
+IntReturnedPoolAddr:          .byte 2*MAXPROCNUM ; == 36 byte
 
 ;=========== Interrupt Vectors 
 .CSEG 
