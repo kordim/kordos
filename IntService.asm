@@ -5,28 +5,26 @@
 
 
 IntServiceStart:
-CLR R10                            ; R10 = ReturnPoolCounter
+CLR       R10                            ; R10 = ReturnPoolCounter
 IntServiceNext:
 
 CLI
 
-CALL_SemGetValue IntPoolCounter    ; Загружаем длину очереди в R16
-CPI        R16 , 0                 ; Сравниваем длину очереди с нулём чтобы понять пуста ли она 
-BREQ       ClearInterruptFlags     ; Если очередь пуста, никто не ждёт прерываний. выходим и чистим флаги
+SUB_SemGetValue IntPoolCounter    ; Load Interrupt Request Queue Length to R16
+CPI       R16 , 0                 ; Queue is empty ?
+BREQ      ClearInterruptFlags     ; Queue is empty, goto Clearing
                     
 ; Загружаем элемент из пула
 ; =========================
-LDI_Z      IntPoolAddr             ; Вычисляем адрес конца очереди  IntPoolAddr + (2 * IntPoolCounter) + IntPoolState 
+LDI_Z     IntPoolAddr             ; Вычисляем адрес конца очереди  IntPoolAddr + (2 * IntPoolCounter)  
                                    ; IntPoolCounter лежит в R16
-LSL        R16                     ; Умножаем IntPoolCounter на 2
+LSL       R16                     ; Умножаем IntPoolCounter на 2 (запрос из 2х байт)
 ADD_Z_R16                          ; Прибавляем 2*IntPoolCounter к смещению
-LSR        R16                     ; Делим обратно IntPoolCounter на 2 ( еще приголдится )
-;LDS        R16 , IntPoolState      ; Ну и наконец прибавляем к смещению "большое" смещение, состояние пула.
-;ADD_Z_R16                          ; прибавили =)
+LSR       R16                     ; Делим обратно IntPoolCounter на 2 ( еще приголдится )
                                    ; Адрес загружен
 
-LD         R18 , Z+                ; R18 = task Number.      Номер задачи
-LD         R19 , Z                 ; R19 = Interrupt Number. Номер прерывания
+LD        R18 , Z+                ; R18 = task Number.      Номер задачи
+LD        R19 , Z                 ; R19 = Interrupt Number. Номер прерывания
 
 ; Check Interrupt flag
 ; Если он 0, прерываний не было, возвращаем запрос в пул
@@ -39,24 +37,24 @@ ADD_X_R16                          ; Смещение получено
 LD        R21 , X+                 ; R21 = Interrupt Buffer Value. Загружаем значение из буфера
 LD        R20 , X                  ; R20 = Interrupt State Flag.   Загружаем флаг прерывания
 
-CPI       R19 , 0                  ; Interrupt Flag == 0 ?
-BREQ      ReturnToPool             ; Interrupf Flag == 0 : Return request back to Pool
+CPI       R20 , 0                  ; Interrupt State Flag == 0 ?
+BREQ      ReturnToPool             ; Interrupf State Flag == 0 : Return request back to Pool
 
 ; Copy Interrupt Buffer to Task Buffer
-; Флаг срабатывания прерывания > 0
-; Нужно записать значение буфера прерывания в буфер задачи 
+; Если Флаг состония прерывания > 0 , то
+; нужно записать буфер прерывания в буфер задачи 
 ; =========================================================
+CopyInterruptValueToTask:
 LDI_Z     TaskFrame
-LDI       R16 , TaskIntBufShift
+
+LDI       R16 , TaskIntBufShift    ; Add shift to "Task Interrupt Incoming Buffer"
 ADD_Z_R16 
-LDI       R16 , FRAMESIZE
 
-MUL       R16, R18                 ; TaskNumber * FRAMESIZE (FRAMESIZE is a length of Task context)
-                                   ; R0 and R1 contain low anf High bytes of multiplicaton  results.
 CLC
-ADD       ZL , R0                  
-ADC       ZH , R1                  ; Z point to Task Interrupt Buffer
-
+LDI       R16 , FRAMESIZE          ; Add Shift Address to TASK number "R16"
+MUL       R16 , R18                ; TaskNumber * FRAMESIZE 
+ADD       ZL  , R0                  
+ADC       ZH  , R1                 ; Address in Z point to "Task Interrupt Incoming Buffer"
 ST        Z  , R21                 ; Store Interrupt Buffer value to Task Buffer
 
 ; Mark Interrupt for Clearing
@@ -68,26 +66,77 @@ ST        X   , R16
 ; Get next Pool Request
 ; =====================
 NextPoolRequest:
-CALL_SemDown     IntPoolCounter   ; Уменьшаем длину очереди на 1 
-RJMP IntServiceNext:
+SUB_SemDown   IntPoolCounter      ; Уменьшаем длину очереди на 1 
+RJMP           IntServiceNext:
 
-; Return not  processed request back To Pool
-; ==========================================
+
+; Return To Pool
+; ==============
 ReturnToPool:
 ; SaveRequestToPool -> Increase ReturnPoolCounter -> NextPoolRequest
-; Get Address to Save 
+LDI_Z     IntPoolReturnAddr   ; Get Address to Save 
+MOV       R10 , R16
+LSR       R16
+ADD_Z_R16
 
-LDI_Z IntReturnedPoolAddr                  ; Вычисляем адрес для сохранения возврящённых значений
-MOV       R10 , R16                ; Copy R10=ReturnPoolCounter to R16=tmp 
-LSR       R16                      ; R16 *= 2
-ADD_Z_R16 
+ST        Z+  , R18           ; Save Task Number 
+ST        Z   , R19           ; Save Interrupt  Number
 
-ST        Z+  , R18                ; Save Task Number 
-ST        Z   , R19                ; Save Interrupt  Number
-
-INC R10                            ; Increase ReturnPoolCounter
-RJMP NextPoolRequest
+INC R10                       ; Increase ReturnPoolCounter
+RJMP NextPoolRequest          ; Decrease Pool Couner and take next request
 
 ; Clearing processed Interrupt Flags 
 ; And Copy From Returned Pool to Main Pool
 
+; Clear Interrupt State Flags and Incoming Buffers
+; =================================================
+;
+LDI       R11 , MAXINTNUM
+LDI       R17 , 0
+LDI_Z     Int_1_Addr
+
+ClearNextInterrupt:
+CLC
+DEC       R11
+BRCS      EndOfClear          
+LD        R18 , Z
+CPI       R18 , 2             ; InteffuptFlag == 2. Need to Clear ?
+BREQ      ClearInterrupt
+SUBI      ZL  ,  low(-2)
+SBCI      ZH  , high(-2)      ;Shift Interrupt Buffer Addredd on 2 bytes ahead 
+RJMP      ClearNextInterrupt
+
+ClearInterrupt:
+CLI
+ST        Z+ , R17            ; Clear Interrupt state flag
+ST        Z  , R17            ; Clear Interrupt incoming buffer
+SEI
+RJMP      ClearNextInterrupt
+    
+EndOfClear:
+
+; Move request from "Return" Pool to Main Pool
+; ============================================
+;
+MoveReturnToMain:
+LDI_Z     IntPoolReturnAddr       ; Get Interrupr Returned Requests Pool Address
+LDI_X     IntPoolAddr             ; Get Main Interrupt Requests Pool  Address
+MOV       R10, R16
+
+MoveNextRequest:
+CLC
+DEC       R10                      ; Decrease Counter of returned requests
+BRCS      MoveReturnEnd            ; Interrupt Returned Requests Pool is empty
+
+LD        R18 , Z+
+LD        R19 , Z
+ST        X+  , R18                ; Store Task Number
+ST        X   , R19                ; Store Interrupt number
+RJMP      MoveNextRequest:
+
+MoveReturnEnd:
+SUB_SemSetValue IntPoolCounter ; IntPoolCounter = R16 =  R10 = "Number of returned requests"
+SEI
+
+
+.EXIT

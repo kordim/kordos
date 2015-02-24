@@ -12,8 +12,7 @@ currentTaskNumber: .byte 1
 .SET TaskRetAddrShift         = 7
 .SET TaskRecvBufMutexShift    = 9
 .SET TaskRecvBufShift         = 10
-.SET TaskIntMutexShift        = 11 ; Obsolette need to remove
-.SET TaskIntBufShift          = 12
+.SET TaskIntBufShift          = 11
 
 ; Регистр состояния задачи                               1 байт   (+0)
 ; Таймер задачи                                          4 байта  (+1)
@@ -21,10 +20,9 @@ currentTaskNumber: .byte 1
 ; Адрес возврата в задачу                                2 байта  (+7)
 ; Мьютекс буфера входящих сообщений + адрес отправителя  1 байт   (+9)
 ; Буфер входящих сообщений                               1 байт   (+10)
-; мьютекс прерывания + id прерывания                     1 байт   (+11)
-; Буфер прерывания                                       1 байт   (+12)
+; Буфер прерывания                                       1 байт   (+11)
 
-; Data                                                   FRAMESIZE - 33 - 13 = 34 байта
+; Data                                                   FRAMESIZE - 33 - 12 = 35 байт
 ; Stack                                                  33 byte
 
 .SET FRAMESIZE = 80
@@ -49,6 +47,7 @@ Task8_state: .byte FRAMESIZE ; == 640 bytes
 ;Mutex8: .byte 1  ; == 8 byte
 
 ; Allocate Memory for Interrupt Buffers
+.SET MAXINTNUM = 20
 Int_1_Addr:  .byte 2
 Int_2_Addr:  .byte 2
 Int_3_Addr:  .byte 2
@@ -70,10 +69,11 @@ Int_18_Addr: .byte 2
 Int_19_Addr: .byte 2
 Int_20_Addr: .byte 2 ; == 40 byte
 
-; Allocate Memory for Inerrupt Request Pool
-IntPoolCounter:               .byte 2
-IntPoolAddr:                  .byte 2*MAXPROCNUM ; == 36 byte
-IntReturnedPoolAddr:          .byte 2*MAXPROCNUM ; == 36 byte
+; Allocate Memory for Interrupt Request Pool
+IntPoolCounter:               .byte 1
+IntReturnedToPoolCounter:     .byte 1
+IntPoolAddr:                  .byte 2*MAXPROCNUM 
+IntPoolReturnAddr:            .byte 2*MAXPROCNUM ; == 34 bytes
 
 ;=========== Interrupt Vectors 
 .CSEG 
@@ -142,7 +142,7 @@ Task7_Timer: .db 10
 Task8_Timer: .db 10
 
 Reset:
-     OUTI SPL , low(RAMEND)
-	OUTI SPH , high(RAMEND)
+OUTI SPL , low(RAMEND)
+OUTI SPH , high(RAMEND)
 
-	
+.EXIT	

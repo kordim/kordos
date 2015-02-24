@@ -14,7 +14,7 @@
 
 TaskLoader_Init:
         CLI
-        LDI taskNumber , MAXPROCNUM
+        LDI taskNumber        , MAXPROCNUM
         STS currentTaskNumber , taskNumber
 
 ;TaskLoader_Start:
@@ -42,8 +42,9 @@ TaskLoader_Load:
         SBRC taskState, taskRun     ; если задача не выполняется то скипаем след строку (запускаем задачу заново)
         RJMP TaskLoader_WakeUp      ; если выполняется, то будим программу
         
-        ORI  taskState , 1<<taskRun ; Не выполняется. Взводим флаг taskRun и сохраним регистр состояния 
-        ST   taskFrameAddr , taskState
+        SBR  taskState      , taskRun ; Не выполняется. Взводим флаг taskRun и сохраним регистр состояния 
+       ;ORI  taskState      , 1<<taskRun ; Не выполняется. Взводим флаг taskRun и сохраним регистр состояния 
+        ST   taskFrameAddr  , taskState
         
         SUBI taskFrameAddr_L , low(-FRAMESIZE) ; установить голову стека задачи ( это конец стекового кадра )
         SBCI taskFrameAddr_H , high(-FRAMESIZE)
@@ -101,7 +102,8 @@ TaskLoader_TaskExit:
         ADD  taskFrameAddr_L   , R0
         ADC  taskFrameAddr_H   , R1
         LD   taskState         , X     ; Регистр состояния теперь лежит в R17
-        ORI  taskState         , 0<<taskRun      ; Снимаем флаг taskRun 
+        CBR  taskState         , taskRun
+       ;ORI  taskState         , 0<<taskRun      ; Снимаем флаг taskRun 
         ST   X+                , taskState ; Сохранили регистр состояния задачи и сместили указатель на таймер задачи
         
         ; Тут надо загрузить дефолтное значение приоритета из таблицы в памяти программ

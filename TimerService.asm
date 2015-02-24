@@ -50,10 +50,10 @@ TimerService_processTask:
     SBCI timer2 , 0
     SBCI timer1 , 0
     
-    ST   timer4 , X-
-    ST   timer3 , X-
-    ST   timer2 , X-
-    ST   timer1 , X- ; после 4 декремента адреса он должен указывать на регистр состояния задачи
+    ST   X- , timer4
+    ST   X- , timer3
+    ST   X- , timer2
+    ST   X- , timer1  ; после 4 декремента адреса он должен указывать на регистр состояния задачи
     
     ; Проверяем на 0
     MOV  tmp , timer1
@@ -66,15 +66,17 @@ TimerService_processTask:
     RJMP TimerService_taskNotZero
 
 TimerService_taskNotZero:
-    ORI  taskState , 0<<taskTimerIsZero ; Если таймер > 0, то выставляем флаг = 1 
+    ;ORI  taskState , 0<<taskTimerIsZero ; Если таймер > 0, то выставляем флаг = 1 
+    CBR  taskState , taskTimerIsZero
     RJMP TimerService_nextTask
 
 TimerService_taskIsZero:
-    ORI  taskState , 1<<taskTimerIsZero ; Если таймер == 0, то выставляем флаг в регистре состояния и сохраняем его 
+    ;ORI  taskState , 1<<taskTimerIsZero ; Если таймер == 0, то выставляем флаг в регистре состояния и сохраняем его 
+    SBR  taskState , taskTimerIsZero
     RJMP TimerService_nextTask
 
 TimerService_nextTask:
-    ST   taskState , X
+    ST   X, taskState 
     SUBI taskFrameAddr_L , low(FRAMESIZE);
     SBCI taskFrameAddr_H , high(FRAMESIZE);
     RJMP TimerService_processTask

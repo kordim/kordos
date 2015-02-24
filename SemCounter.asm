@@ -1,4 +1,7 @@
-.MACRO CALL_SemUp   
+; Increase semaphore by 1 
+; =======================
+;
+.MACRO SUB_SemUp   
     PUSH ZL
     PUSH ZH
     LDI  ZL , low(@0)
@@ -8,7 +11,32 @@
     POP  ZL
 .ENDM
 
-.MACRO CALL_SemDown
+.MACRO IPC_SemUp        ; _POD_ IPC_SemUp: Increase Semaphore value by 1
+                        ; _POD_ IPC_SemUp: Semaphore address must be in Z before call
+    PUSH       R16      
+    PUSH       R17
+
+    LD         R17 , Z+	; R17 = Limit
+IPC_SemUpCheck:
+    LD         R16 , Z	; R16 = Value   
+    CP         R16 , R17  
+    BRNE       IPC_SemInc               ; Increase Semaphore value 
+    CALL       SaveContextBySelf        ; Semaphore reach maximal value, wait until semaphore is down
+    RJMP       TaskBreak	               ; 
+    RJMP       IPC_SemUpCheck           ; Return from core. Check semaphore again
+IPC_SemInc:
+    INC        R16                     
+    ST         Z , R16                
+    
+    POP        R17
+    POP        R16
+    RET
+.ENDM
+
+; Decrease semaphore by 1
+; =======================
+;
+.MACRO SUB_SemDown
     PUSH ZL
     PUSH ZH
     LDI  ZL , low(@0)
@@ -17,82 +45,55 @@
     POP  ZH
     POP  ZL
 .ENDM
-
-.MACRO IPC_SemUp			     ; semaphore with counter. semaphore address  in Z register  
-    .DEF limit = R17
-    .DEF value = R16
-    PUSH value                     ; сохранили регистры R16 и R17
-    PUSH limit
-
-    LD   limit , Z+		          ; pfuhepbkb максимальное значение семафора
-IPC_SemUpCheck:
-    LD   value , Z	               ; текущее значение семафора   
-    CP   value , limit             ; Сравнивает текужее значение и максимальное
-    BRNE IPC_SemInc                ; Если значение < макс. то увеличиваем счётчик семафора
-    CALL SaveContextBySelf
-    RJMP TaskBreak	               ; Если значение == макс. то переходим к ожиданию. отдаём управление в ядро
-    RJMP IPC_SemUpCheck            ; После возврата из ядра идём опять в проверку семафора
-IPC_SemInc:
-    INC  value                     ; Если семафор < макс. ( не вижу причин для его превышения) то инкрементим его и RETI
-    ST   Z  , value                ; сохраняем значение семафора обратно в память
-    POP  limit
-    POP  value
-    RET
-    .UNDEF limit
-    .UNDEF value
-.ENDM
-
 .MACRO IPC_SemDown
-    .DEF value = R16
-    PUSH value            ; сохраняем R16
-    LD   value , Z+	 	 ; не используется при опускании семафора, но загрузить байт быстрее чем сдвинуть адрес
-    LD   value , Z		 ; текущее значение семафора   
-    CPI  value , 0
+    PUSH R16              
+    LD   R16 , Z+	 	 ; Load semaphore limit to R16
+    LD   R16 , Z		 ; Load semaphore value to R16  
+    CPI  R16 , 0
     BREQ IPC_SemDownRet   ; Если значение == 0 то просто выходим
-    DEC  value            ; Уменьшаем счётчик семафора
-    ST   Z  , value       ; сохраняем значение семафора обратно в память
-IPC_SemDownRet:    
-    POP  value
+    DEC  R16              ; Уменьшаем счётчик семафора
+    ST   Z  , R16         ; сохраняем значение семафора обратно в память
+    IPC_SemDownRet:    
+    POP  R16
     RET
-    .UNDEF value
 .ENDM
 
-; ============================
+; Direct set semaphore value from R16 
+; ===================================
+;
+.MACRO SUB_SemSetValue ;  _POD_ SUB_SemSetValue parameters: Address , Value
+    PUSH       ZL
+    PUSH       ZH
+    LDI_Z      @0+1     ; Get semaphore address , and skip 1 byte (limit) 
+    ST         Z  , R16 ; Set value
+    POP        ZH
+    POP        ZL
+.ENDM
 
-.MACRO CALL_SemGetValue  ; _POD_ Result stored in R16
+; Get semaphore current value
+; ===========================
+;
+.MACRO SUB_SemGetValue  ; _POD_ Result stored in R16
     PUSH ZL
     PUSH ZH
-    LDI  ZL , low(@0)
-    LDI  ZH , high(@0)
-    CALL IPC_SemGetValue
+    LDI  ZL  , low(@0)
+    LDI  ZH  , high(@0)
+    LD   R16 , Z+
+    LD   R16 , Z
     POP  ZH
     POP  ZL
 .ENDM
 
-.MACRO IPC_SemGetValue   ; _POD_ Return Semaphore current value
-    .DEF value = R16
-    LD   value , Z+	 	 ; не используется при опускании семафора, но загрузить байт быстрее чем сдвинуть адрес
-    LD   value , Z		 ; текущее значение семафора   
-    RET
-    .UNDEF value
-.ENDM
-
-; ============================
-.MACRO CALL_SemGetMax    ; _POD_ Result stored in R16
+; Get semaphore maximum allowed value
+; ===================================
+; 
+.MACRO SUB_SemGetMax    ; _POD_ SUB_SemGetMax: Result stored in R16
     PUSH ZL
     PUSH ZH
     LDI  ZL , low(@0)
     LDI  ZH , high(@0)
-    CALL IPC_SemGetMax
+    LD   R16 , Z
     POP  ZH
     POP  ZL
 .ENDM
-
-.MACRO IPC_SemGetMax      ; _POD_ Return semaphore limit value
-    .DEF value = R16
-    LD   value , Z+	 	 ; не используется при опускании семафора, но загрузить байт быстрее чем сдвинуть адрес
-    RET
-    .UNDEF value
-.ENDM
-.
 
