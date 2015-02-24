@@ -1,4 +1,0 @@
-.MACRO WaitForInterrupt
-
-.ENDM
-
