@@ -1,100 +1,77 @@
-; Переделать с учётом кольцевой структуры данных задачи
 .MACRO TimerService
-.DEF taskFrameAddr_L = XL
-.DEF taskFrameAddr_H = XH
-.DEF taskFrameAddr   = X
-.DEF taskNumber      = R16
-.DEF taskState       = R17
-.DEF timer1          = R19
-.DEF timer2          = R20
-.DEF timer3          = R21
-.DEF timer4          = R22
-.DEF tmp             = R23
-.DEF tmp2            = R24
-
-TimerService_Start:
+; R9  = Task State Register
+; R10 = taskNumber counter ( for cycle ) 
+; X   = TaskFrameAddr
+; R16 = tmp
+; R11 = timer byte 1 (low)
+; R12 = timer byte 2
+; R13 = timer byte 3
+; R14 = timer byte 4 (high)
+TS_Start:
+    
     CALL SaveContextByInterrupt
-    LDI taskNumber      , MAXPROCNUM
-    LDS taskFrameAddr_L , low(TaskFrame) ; Смещаемся на начало Фрейма последней задачи 
-    LDS taskFrameAddr_H , high(TaskFrame)
-    LDI tmp             , (MAXPROCNUM-1)*FRAMESIZE
-    ADD taskFrameAddr_L , tmp
-    SBRC SREG , 0
-    INC taskFrameAddr_H
-    CLC 
-
-TimerService_processTask:
-    DEC  taskNumber
-    BRCS TimerService_END ; Когда прощёлкали все таймеры выходим из таймерной службы
-
-    LD  taskState , X ; загрузили состояние задачи
     
-    SBRC taskState , taskWaitInt   ; если задача ждёт прерывания то тикать не надо берём следующую задачу
-    RJMP TimerService_nextTask
+    LDI    R10      , MAXPROCNUM                   ; Load MAXPROCNUM for cycle         
+    LDI_X  TaskFrame              
+    LDI    R16      , (MAXPROCNUM-1)*FRAMESIZE 
+    ADDW   XL       , R16                          ; shift to last task frame
+
+TS_processTask:
+    DEC    R10
+    BRCS   TS_END                        ; Когда прощёлкали все таймеры выходим из таймерной службы
     
-    SBRC taskState , taskTimerIsZero ; если таймер уже 0 то тикать не надо берём следующую задачу
-    RJMP TimerService_nextTask
-
-    SUBI taskFrameAddr_L , low(-1)  ; сместились на 1 байт вперёд в стековом кадре, чтобы читать таймерые (см MemoryAlloc.asm )
-    SBCI taskFrameAddr_H , high(-1)
-
-    ; загрузили таймер в регистры 4 байт должно хватить на ~50 дней
-    LD timer1, X+
-    LD timer2, X+
-    LD timer3, X+
-    LD timer4, X
+    LD     R9       , X                            ; Load TaskState register to R9
     
-    ; Уменьшаем таймер
-    SUBI timer4 , 1
-    SBCI timer3 , 0
-    SBCI timer2 , 0
-    SBCI timer1 , 0
+    SBRC   R9       , taskWaitInt                  ; task wait interrupt, goto process next task timer
+    RJMP   TS_nextTask
     
-    ST   X- , timer4
-    ST   X- , timer3
-    ST   X- , timer2
-    ST   X- , timer1  ; после 4 декремента адреса он должен указывать на регистр состояния задачи
+    SBRC   R9       , taskTimerIsZero              ; timer already is zero, goto process next task timer
+    RJMP   TS_nextTask
     
-    ; Проверяем на 0
-    MOV  tmp , timer1
-    OR   tmp , timer2
-    OR   tmp , timer3
-    OR   tmp , timer4
+    SUBI_X  -TaskTimerShift                        ; shift Address in X reg to TaskTimer ( 1 byte forward )
+
     
-    CPI  tmp , 0
-    BREQ TimerService_taskIsZero      ; Если таймер  > 0 то сохраняем таймер и выставляем бит taskTimeIsZero = 0  потоме переходим к следующей задаче
-    RJMP TimerService_taskNotZero
+    LD R11, X+                                     ; Load Task timer bytes
+    LD R12, X+
+    LD R13, X+
+    LD R14, X+
+    
+    SBCI R11 , 1                                   ; Decrease timer 
+    SBCI R12 , 0
+    SBCI R13 , 0
+    SUBI R14 , 0
+    
+    ST   -X , R14
+    ST   -X , R13
+    ST   -X , R12
+    ST   -X , R11  
 
-TimerService_taskNotZero:
-    ;ORI  taskState , 0<<taskTimerIsZero ; Если таймер > 0, то выставляем флаг = 1 
-    CBR  taskState , taskTimerIsZero
-    RJMP TimerService_nextTask
+    SUBI_X TaskTimerShift
+    
+    MOV  R16 , R11                                ; Check Timer Value
+    OR   R16 , R12
+    OR   R16 , R13
+    OR   R16 , R14
+    
+    CPI  R16 , 0                                  ; Timer == 0 ?
+    BREQ TS_timer_eq_zero                         ; timer == 0 : Set bit register "taskTimerIsZero" for task     
+    RJMP TS_timer_ne_zero                         ; timer != 0 : Clear bit register "taskTimerIsZero" for task
 
-TimerService_taskIsZero:
-    ;ORI  taskState , 1<<taskTimerIsZero ; Если таймер == 0, то выставляем флаг в регистре состояния и сохраняем его 
-    SBR  taskState , taskTimerIsZero
-    RJMP TimerService_nextTask
+TS_timer_ne_zero:
+    CBR  R9 , taskTimerIsZero
+    RJMP TS_nextTask
 
-TimerService_nextTask:
-    ST   X, taskState 
-    SUBI taskFrameAddr_L , low(FRAMESIZE);
-    SBCI taskFrameAddr_H , high(FRAMESIZE);
-    RJMP TimerService_processTask
+TS_timer_eq_zero:
+    SBR  R9 , taskTimerIsZero
+    RJMP TS_nextTask
 
-TimerService_END:
+TS_nextTask:
+    ST   X  , R9 
+    SUBI_X  FRAMESIZE;
+    RJMP TS_processTask
+
+TS_END:
     NOP
-
-.UNDEF taskFrameAddr_L
-.UNDEF taskFrameAddr_H
-.UNDEF taskFrameAddr  
-.UNDEF taskNumber     
-.UNDEF taskState      
-.UNDEF timer1         
-.UNDEF timer2         
-.UNDEF timer3         
-.UNDEF timer4         
-.UNDEF tmp            
-.UNDEF tmp2           
 
 .ENDM
 

@@ -20,6 +20,15 @@
     INC  ZH
 .ENDM
 
+.MACRO ADDW ; Im not sure about this construction. I think this must be called as
+            ; ADDW ZL R16
+            ; And result with carry placed in ZL:ZH
+    CLC
+    ADD  @0   , @1
+    SBRC SREG , 0
+    INC  @0+1
+.ENDM
+
 .MACRO SUBI_X ; uses registers: R16, ZL, ZH
     SUBI XL   , low(@0)
     SBCI XH   , high(@0)

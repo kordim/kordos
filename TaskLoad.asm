@@ -17,52 +17,48 @@ TaskLoader_Init:
         LDI taskNumber        , MAXPROCNUM
         STS currentTaskNumber , taskNumber
 
-;TaskLoader_Start:
-;        LDS  taskNumber , currentTaskNumber ; загрузили номер текущей задачи 
-       
-TaskLoader_Next:                                  ; Итерация цикла обработки задач
-        DEC  taskNumber        ; R16=7 (8-1)
+TaskLoader_Next:                                   ; Итерация цикла обработки задач
+        DEC  taskNumber                            ; R16=7 (8-1)
         BRCS TaskLoader_Init
-        STS currentTaskNumber , taskNumber ; перед запуском сохраним номер задачи в память
-        MOV tmp             , taskNumber         ; считаем смещение чтобы утановить стековый кадр
-        LDI tmp1            , FRAMESIZE
-        LDI taskFrameAddr_L , low(TaskFrame) 
-        LDI taskFrameAddr_H , high(TaskFrame)
-        MUL tmp             , tmp1
-        ADD taskFrameAddr_L , R0
-        ADC taskFrameAddr_H , R1 ; посчитали адрес смещения до  контекста задачи
-        LD   taskState , taskFrameAddr     ; Регистр состояния теперь лежит в R17
-        SBRC taskState , taskWaitInt       ; если задача ждёт прерывания то и пускай ждёт, вызывать мы её не будем 
+        STS  currentTaskNumber , taskNumber        ; перед запуском сохраним номер задачи в память
+        MOV  tmp               , taskNumber        ; считаем смещение чтобы утановить стековый кадр
+        LDI  tmp1              , FRAMESIZE
+        LDI  taskFrameAddr_L   , low(TaskFrame) 
+        LDI  taskFrameAddr_H   , high(TaskFrame)
+        MUL  tmp               , tmp1
+        ADD  taskFrameAddr_L   , R0
+        ADC  taskFrameAddr_H   , R1                ; посчитали адрес смещения до  контекста задачи
+        LD   taskState         , taskFrameAddr     ; Регистр состояния теперь лежит в R17
+        SBRC taskState         , taskWaitInt       ; если задача ждёт прерывания то и пускай ждёт, вызывать мы её не будем 
         RJMP TaskLoader_Next
-        SBRC taskState, taskTimerIsZero ; если таймер не 0 проверяем таймер следующей задачи.
-        RJMP TaskLoader_Load            ; если таймер == 0 то запускаем программу. либо сначала, либо с того места где она прервалась
+        SBRC taskState         , taskTimerIsZero   ; если таймер не 0 проверяем таймер следующей задачи.
+        RJMP TaskLoader_Load                       ; если таймер == 0 то запускаем программу. либо сначала, либо с того места где она прервалась
         RJMP TaskLoader_Next
 
 TaskLoader_Load:                   
-        SBRC taskState, taskRun     ; если задача не выполняется то скипаем след строку (запускаем задачу заново)
-        RJMP TaskLoader_WakeUp      ; если выполняется, то будим программу
+        SBRC taskState         , taskRun           ; если задача не выполняется то скипаем след строку (запускаем задачу заново)
+        RJMP TaskLoader_WakeUp                     ; если выполняется, то будим программу
         
-        SBR  taskState      , taskRun ; Не выполняется. Взводим флаг taskRun и сохраним регистр состояния 
-       ;ORI  taskState      , 1<<taskRun ; Не выполняется. Взводим флаг taskRun и сохраним регистр состояния 
-        ST   taskFrameAddr  , taskState
+        SBR  taskState         , taskRun           ; Task not run. Set Bit register  "taskRun" and save task state register 
+        ST   taskFrameAddr     , taskState
         
-        SUBI taskFrameAddr_L , low(-FRAMESIZE) ; установить голову стека задачи ( это конец стекового кадра )
-        SBCI taskFrameAddr_H , high(-FRAMESIZE)
-        OUT  SPL , taskFrameAddr_L
-        OUT  SPH , taskFrameAddr_H               
+        SUBI taskFrameAddr_L   , low(-FRAMESIZE)   ; установить голову стека задачи ( это конец стекового кадра )
+        SBCI taskFrameAddr_H   , high(-FRAMESIZE)
+        OUT  SPL               , taskFrameAddr_L
+        OUT  SPH               , taskFrameAddr_H               
         
         ; Пихаю адрес TaskLoader_TaskExit в стек задачи чтобы сделав конце RET она сразу перешла
 
         ; загружаем адрес старта задачи чтобы вызвать задачу
-        LDI ZL                ,  low(taskStartAddress*2)
-        LDI ZH                , high(taskStartAddress*2)
-        MOV tmp               , taskNumber
+        LDI  ZL                , low(taskStartAddress*2)
+        LDI  ZH                , high(taskStartAddress*2)
+        MOV  tmp               , taskNumber
         
-        LSL tmp             ; умножаем номер таска на 2 чтобы учесть двухбайтовую природу адресации
+        LSL  tmp             ; умножаем номер таска на 2 чтобы учесть двухбайтовую природу адресации
         CLC
-        ADD ZL , tmp
-        SBRC SREG , 0 ; skip if C flag is clear
-        INC ZH
+        ADD  ZL                , tmp
+        SBRC SREG              , 0 ; skip if C flag is clear
+        INC  ZH
         CLC
 
         ; ICALL ; минус вызова ICALL в том что нужно держать 2 байта в стеке для возврата сюда
@@ -72,7 +68,7 @@ TaskLoader_Load:
         
         LPM tmp               , Z+ ; MSD
         LPM tmp1              , Z  ; LSD
-        PUSH tmp1             ; пихаем  Z в стек и прыгаем в задачу
+        PUSH tmp1                  ; пихаем  Z в стек и прыгаем в задачу
         PUSH tmp              
         RETI                  
         ; Вот тут я возвращаюсь из задачи
@@ -101,22 +97,22 @@ TaskLoader_TaskExit:
         LDI  taskFrameAddr_H   , high(TaskFrame)
         ADD  taskFrameAddr_L   , R0
         ADC  taskFrameAddr_H   , R1
-        LD   taskState         , X     ; Регистр состояния теперь лежит в R17
-        CBR  taskState         , taskRun
-       ;ORI  taskState         , 0<<taskRun      ; Снимаем флаг taskRun 
-        ST   X+                , taskState ; Сохранили регистр состояния задачи и сместили указатель на таймер задачи
+        LD   taskState         , X                 ; Регистр состояния теперь лежит в R17
+        CBR  taskState         , taskRun           ; Clear Bit register " taskRun"
+        ST   X+                , taskState         ; Сохранили регистр состояния задачи и сместили указатель на таймер задачи
         
         ; Тут надо загрузить дефолтное значение приоритета из таблицы в памяти программ
         LDI  ZL                ,  low(DefaultTimer*2)
         LDI  ZH                , high(DefaultTimer*2)
         
-        MOV  tmp               , taskNumber ; прибавляю смещение: удвоенное значение номера задачи
+        MOV  tmp               , taskNumber        ; прибавляю смещение: удвоенное значение номера задачи
         LSL  tmp               
+        
         CLC
         ADD  ZL                , tmp
-        SBRC SREG              , 0 ; skip if C flag is clear 
+        SBRC SREG              , 0                 ; skip if C flag is clear 
         INC  ZH
-        CLC
+        
         LPM  tmp               , Z ; Дефолтное значение таймера лежит в tmp
         
         CLR  tmp1
@@ -125,7 +121,7 @@ TaskLoader_TaskExit:
         ST   X+                , tmp1
         ST   X                 , tmp ; Записываем дефолтное значение таймера в самый младший байт таймера
         
-        RJMP interruptServiceStart ; Уходим в обработчик прерываний. А из него обратно в загрузчик задча
+        RJMP interruptServiceStart ; Уходим в обработчик прерываний. А из него обратно в загрузчик задчач ( TaskLoaderInit)
 
 TaskBreak:                         ; если задача передала управление ядру по любой причине кроме exit то мы попадаем сюда ведь задача должна просто немного подождать
         RJMP TaskLoader_Next

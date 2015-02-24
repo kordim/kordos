@@ -3,9 +3,8 @@
 .DEF intFlag            = R20
 .DEF intBuf             = R21
 
-
 IntServiceStart:
-CLR       R10                            ; R10 = ReturnPoolCounter
+CLR       R10                     ; R10 = ReturnPoolCounter
 IntServiceNext:
 
 CLI
@@ -17,11 +16,11 @@ BREQ      ClearInterruptFlags     ; Queue is empty, goto Clearing
 ; Загружаем элемент из пула
 ; =========================
 LDI_Z     IntPoolAddr             ; Вычисляем адрес конца очереди  IntPoolAddr + (2 * IntPoolCounter)  
-                                   ; IntPoolCounter лежит в R16
+                                  ; IntPoolCounter лежит в R16
 LSL       R16                     ; Умножаем IntPoolCounter на 2 (запрос из 2х байт)
-ADD_Z_R16                          ; Прибавляем 2*IntPoolCounter к смещению
+ADD_Z_R16                         ; Прибавляем 2*IntPoolCounter к смещению
 LSR       R16                     ; Делим обратно IntPoolCounter на 2 ( еще приголдится )
-                                   ; Адрес загружен
+                                  ; Адрес загружен
 
 LD        R18 , Z+                ; R18 = task Number.      Номер задачи
 LD        R19 , Z                 ; R19 = Interrupt Number. Номер прерывания
