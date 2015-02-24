@@ -1,4 +1,3 @@
-
 .MACRO WaitForInterrupt
 PUSH ZL
 PUSH ZH
