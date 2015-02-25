@@ -1,32 +1,8 @@
 ; ============ Code Segment
 .DSEG ; Allocate RAM
+currentTaskNumber: .byte 1 ; Выделяем байт для хранения номера выполняемой задачи
 
-; Выделяем байт для хранения номера выполняемой задачи
-currentTaskNumber: .byte 1
-
-; Allocate Memory for Tasks Stacks
-
-.SET TaskSregShift            = 0
-.SET TaskTimerShift           = 1
-.SET TaskStackRootShift       = 5
-.SET TaskRetAddrShift         = 7
-.SET TaskRecvBufMutexShift    = 9
-.SET TaskRecvBufShift         = 10
-.SET TaskIntBufShift          = 11
-
-; Регистр состояния задачи                               1 байт   (+0)
-; Таймер задачи                                          4 байта  (+1)
-; Адрес верхушки стека                                   2 байта  (+5)
-; Адрес возврата в задачу                                2 байта  (+7)
-; Мьютекс буфера входящих сообщений + адрес отправителя  1 байт   (+9)
-; Буфер входящих сообщений                               1 байт   (+10)
-; Буфер прерывания                                       1 байт   (+11)
-
-; Data                                                   FRAMESIZE - 33 - 12 = 35 байт
-; Stack                                                  33 byte
-
-.SET FRAMESIZE = 80
-TaskFrame:        
+TaskFrame:        ; Allocate Memory for Tasks Stacks
 Task1_state: .byte FRAMESIZE
 Task2_state: .byte FRAMESIZE
 Task3_state: .byte FRAMESIZE
@@ -36,38 +12,27 @@ Task6_state: .byte FRAMESIZE
 Task7_state: .byte FRAMESIZE
 Task8_state: .byte FRAMESIZE ; == 640 bytes
 
-; Alocate Memory for mutexes
-;Mutex1: .byte 1
-;Mutex2: .byte 1
-;Mutex3: .byte 1
-;Mutex4: .byte 1
-;Mutex5: .byte 1
-;Mutex6: .byte 1
-;Mutex7: .byte 1
-;Mutex8: .byte 1  ; == 8 byte
-
 ; Allocate Memory for Interrupt Buffers
-.SET MAXINTNUM = 20
-Int_1_Addr:  .byte 2
-Int_2_Addr:  .byte 2
-Int_3_Addr:  .byte 2
-Int_4_Addr:  .byte 2
-Int_5_Addr:  .byte 2
-Int_6_Addr:  .byte 2
-Int_7_Addr:  .byte 2
-Int_8_Addr:  .byte 2
-Int_9_Addr:  .byte 2
-Int_10_Addr: .byte 2
-Int_11_Addr: .byte 2
-Int_12_Addr: .byte 2
-Int_13_Addr: .byte 2
-Int_14_Addr: .byte 2
-Int_15_Addr: .byte 2
-Int_16_Addr: .byte 2
-Int_17_Addr: .byte 2
-Int_18_Addr: .byte 2
-Int_19_Addr: .byte 2
-Int_20_Addr: .byte 2 ; == 40 byte
+int_1_Addr:  .byte 2
+int_2_Addr:  .byte 2
+int_3_Addr:  .byte 2
+int_4_Addr:  .byte 2
+int_5_Addr:  .byte 2
+int_6_Addr:  .byte 2
+int_7_Addr:  .byte 2
+int_8_Addr:  .byte 2
+int_9_Addr:  .byte 2
+int_10_Addr: .byte 2
+int_11_Addr: .byte 2
+int_12_Addr: .byte 2
+int_13_Addr: .byte 2
+int_14_Addr: .byte 2
+int_15_Addr: .byte 2
+int_16_Addr: .byte 2
+int_17_Addr: .byte 2
+int_18_Addr: .byte 2
+int_19_Addr: .byte 2
+int_20_Addr: .byte 2 ; == 40 byte
 
 ; Allocate Memory for Interrupt Request Pool
 IntPoolCounter:               .byte 1
@@ -122,16 +87,16 @@ IntPoolReturnAddr:            .byte 2*MAXPROCNUM ; == 34 bytes
 
 ; Put start addreses of tasks in Code segment 
 taskStartAddress:
-    .dw Task1_Start
-    .dw Task2_Start
-    .dw Task3_Start
-    .dw Task4_Start
-    .dw Task5_Start
-    .dw Task6_Start
-    .dw Task7_Start
-    .dw Task8_Start
+.dw task1_start
+.dw task2_start
+.dw task3_start
+.dw task4_start
+.dw task5_start
+.dw task6_start
+.dw task7_start
+.dw task8_start
 
-DefaultTimer:
+DefaultTimer: 
 Task1_Timer: .db 10
 Task2_Timer: .db 10
 Task3_Timer: .db 10

@@ -44,10 +44,8 @@ BREQ      ReturnToPool             ; Interrupf State Flag == 0 : Return request 
 ; нужно записать буфер прерывания в буфер задачи 
 ; =========================================================
 CopyInterruptValueToTask:
-LDI_Z     TaskFrame
-
-LDI       R16 , TaskIntBufShift    ; Add shift to "Task Interrupt Incoming Buffer"
-ADD_Z_R16 
+LDI_Z     TaskFrame                ; Get task frame address
+SUBI_Z    -1*TaskIntBufShift
 
 CLC
 LDI       R16 , FRAMESIZE          ; Add Shift Address to TASK number "R16"

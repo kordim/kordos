@@ -14,7 +14,7 @@ TS_Start:
     LDI    R10      , MAXPROCNUM                   ; Load MAXPROCNUM for cycle         
     LDI_X  TaskFrame              
     LDI    R16      , (MAXPROCNUM-1)*FRAMESIZE 
-    ADDW   XL       , R16                          ; shift to last task frame
+    ADDW   R16 , XL , XH                           ; shift to last task frame
 
 TS_processTask:
     DEC    R10
@@ -28,7 +28,7 @@ TS_processTask:
     SBRC   R9       , taskTimerIsZero              ; timer already is zero, goto process next task timer
     RJMP   TS_nextTask
     
-    SUBI_X  -TaskTimerShift                        ; shift Address in X reg to TaskTimer ( 1 byte forward )
+    SUBI_X  -1*TaskTimerShift                        ; shift Address in X reg to TaskTimer ( 1 byte forward )
 
     
     LD R11, X+                                     ; Load Task timer bytes

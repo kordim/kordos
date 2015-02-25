@@ -32,7 +32,7 @@ ADC ZH  , R1
 
 ; Shift Address in Z register forward to rcpt mutex.
 ; And wait until recipient will be ready to receive data
-SUBI_Z    -TaskRecvBufMutexShift  
+SUBI_Z    -1*TaskRecvBufMutexShift  
 ;MOV       R16, R18                ; Copy R16 to R18. R16 is an argument for  IPC_MutexUp
 LDS       R16 currentTaskNumber   ; Set up arguments for IPC_mutexUp
 CALL      IPC_MutexUp             ; Write Sender id to recipient mutex (mutex address in Z, sender ID in R1
