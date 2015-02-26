@@ -46,8 +46,9 @@
     JMP  TaskLoader_TaskExit
 .ENDM
 
-.MACRO getTaskAddrZ ; _POD_ MACRO getTaskAddrZ: TaskNumber , Return_L , Return_H
-                    ; _POD_ MACRO getTaskAddrZ: R0,R1,R15 is reserved. Don`t use it as args.
+.MACRO getTaskAddrZ 
+; _POD_ MACRO getTaskAddrZ: TaskNumber , Return_L , Return_H
+; _POD_ MACRO getTaskAddrZ: R0,R1,R16 is reserved. Don`t use it as args.
    .DEF taskNumber = @0
    .DEF tmp        = @1
    .DEF Return_L   = @2
@@ -55,16 +56,16 @@
    
    PUSH R0
    PUSH R1
-   PUSH R15
+   PUSH R16
    
    LDI Return_L   , low(TaskFrame)
    LDI Return_H   , high(TaskFrame)
-   LDI R15        , FRAMESIZE
+   LDI R16        , FRAMESIZE
    MUL taskNumber , tmp
    ADD Return_L , R0
    ADC Return_H , R1
    
-   POP R15
+   POP R16
    POP R1
    POP R0
    

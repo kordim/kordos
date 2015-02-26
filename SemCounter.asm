@@ -19,10 +19,12 @@
     LD         R17 , Z+	; R17 = Limit
 IPC_SemUpCheck:
     LD         R16 , Z	; R16 = Value   
-    CP         R16 , R17  
+    CP         R16 , R17                ; Semaphore == maximum value ???
     BRNE       IPC_SemInc               ; Increase Semaphore value 
-    CALL       SaveContextBySelf        ; Semaphore reach maximal value, wait until semaphore is down
+    
+    CALL       SUB_SaveContextBySelf        ; Semaphore reach maximal value, wait until semaphore is down
     RJMP       TaskBreak	               ; 
+    
     RJMP       IPC_SemUpCheck           ; Return from core. Check semaphore again
 IPC_SemInc:
     INC        R16                     

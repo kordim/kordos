@@ -37,7 +37,7 @@ IPC_MutexCheckUp:
     CPI   R17 , 0           ; Проверили опущен ли флаг
     
     BREQ  IPC_MutexSet       ; Если семафор опущен то взводим его
-    CALL SaveContextBySelf
+    CALL  CALL_SaveContextBySelf
     RJMP  TaskBreak          ; Если семафор поднят то ждём когда он опустится, отдаём управление ядру
     RJMP  IPC_MutexCheckUp   ; После возврата из ядра идём опять в проверку семафора
 

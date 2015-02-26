@@ -2,16 +2,16 @@
 ; =================
 ;
 ; SUB_Sleep call example:
-; LDI R11 , 100
-; LDI R12 , 0
-; LDI R13 , 0
-; LDI R14 , 0
 ; LDS R16 , currentTaskNum
+; LDI R17 , 100
+; LDI R18 , 0
+; LDI R19 , 0
+; LDI R20 , 0
 ; CALL SUB_Sleep
 
 .MACRO sys_sleep
 SUB_Sleep: 
-    ; _POD_  SUB_Sleep: Arguments: taskNumber=R16, timerByte1(Low)=R11, timerByte2=R12, timerByte3=R13, timerByte4(Low)=R14 
+    ; _POD_  SUB_Sleep: Arguments: taskNumber=R16, timerByte1(Low)=R17, timerByte2=R18, timerByte3=R19, timerByte4(Low)=R20 
     ; _POD_  SUB_Sleep: Reserved: ZL, ZH
     
     PUSH ZL
@@ -19,11 +19,16 @@ SUB_Sleep:
 
     CALL SUB_getTaskAddr   ; Call SUB_getTaskAddr , argument in R16 , results in ZL:ZH
     SUBI_Z -1*TaskTimerShift ; shift address to high byte of timer
-    ST Z+ , R11
-    ST Z+ , R12
-    ST Z+ , R13
-    ST Z+ , R14
+    ST Z+ , R17
+    ST Z+ , R18
+    ST Z+ , R19
+    ST Z+ , R20
 
+    ; Take control to core
+    CALL       SUB_SaveContextBySelf        ; Semaphore reach maximal value, wait until semaphore is down
+    RJMP       TaskBreak	               ; 
+
+    ; Return From Core and continue.
 
     POP ZH
     POP ZL
@@ -43,20 +48,20 @@ SUB_Sleep:
 SUB_getTaskAddr: 
     ; _POD_ SUB_getTaskAddr: Argument: taskNumber = R16.
     ; _POD_ SUB_getTaskAddr: Return:   Address    = ZL:ZH
-    ; _POD_ SUB_getTaskAddr: Reserved: R0, R1, R15
+    ; _POD_ SUB_getTaskAddr: Reserved: R0, R1, R17
 
    PUSH R0
    PUSH R1
-   PUSH R15
+   PUSH R17
    
    LDI ZL  , low(TaskFrame)
    LDI ZH  , high(TaskFrame)
-   LDI R15 , FRAMESIZE
+   LDI R17 , FRAMESIZE
    MUL R16 , R15
    ADD ZL  , R0
    ADC ZH  , R1
    
-   POP R15
+   POP R17
    POP R1
    POP R0
    RET

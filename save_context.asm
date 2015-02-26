@@ -1,135 +1,70 @@
-; =========================================
-;
-; MACRO for saving task context from kernel 
-;
-; =========================================
-.MACRO SaveContextIntMacro
-	SaveContextByInterrupt:
-	STS tmpR16 , R16 ; Расчищаем себе пару регистров для работы
+.MACRO M_SaveContextBySelf
+SUB_SaveContextBySelf:
+	STS tmpR16 , R16    ; Расчищаем себе пару регистров для работы
 	STS tmpR17 , R17
 	
-	STS tmpR18 , R18 ; Расчищаем себе пару регистров для работы
-	STS tmpR19 , R19
-	
-	POP R18
-	POP R19
-	STS tmpReturnCall1 , R18
-	STS tmpReturnCall2 , R19
-	
-	POP R16             ; Кладём адрес возврата во временную ячейку
+     POP R16             ; Кладём адрес возврата во временную ячейку
 	POP R17
-	STS tmpReturnToTask1 , R16  
-	STS tmpReturnToTask2 , R17
 	
-	PUSH R17            ; Пихаем адрес возврата обратно в стек
-	PUSH R16
+     STS tmp_taskBreakPoint_L , R16  ; в конце эти два байта будут записаны на верхушку стека как адрес возврата
+	STS tmp_taskBreakPoint_H , R17
 	
 	LDS R16 , tmpR16    ; Восстанавливаем регистры R16 R17 и  сохраняем регистры в стек задачи
 	LDS R17 , tmpR17
-	LDS R18 , tmpR18
-	LDS R19 , tmpR19
-	
-	PUSH R0
-	PUSH R1
-	PUSH R2
-	PUSH R3
-	PUSH R4
-	PUSH R5
-	PUSH R6
-	PUSH R7
-	PUSH R8
-	PUSH R9
-	PUSH R10
-	PUSH R11
-	PUSH R12
-	PUSH R13
-	PUSH R14
-	PUSH R15
-	PUSH R16
-	PUSH R17
-	PUSH R18
-	PUSH R19
-	PUSH R20
-	PUSH R21
-	PUSH R22
-	PUSH R23
-	PUSH R24
-	PUSH R25
-	PUSH R26
-	PUSH R27
-	PUSH R28
-	PUSH R29
-	PUSH R30
-	PUSH R31
-	MOV SREG , R16
-	PUSH R16
-	
-	; Загружаем номер текущей задачи  и вычисляем адрес ячейки для сохранения адреса верхушки стека
-	LDS  R18 , currentTaskNumber
-	LDI  R19 , FRAMESIZE
-	LDS  ZL  , low(TaskFrame) 
-	LDS  ZH  , high(TaskFrame)
-	MUL  R18 , R19
-	
-	ADD  ZL  , R0
-	ADC  ZH  , R1 ; прыгнули на начало контекста задачи
-	
-	SUBI ZL  , low(-5)
-	SBCI ZH  , high(-5) ; прыгнули на адрес для сохранения верхушки стека
-	
-	IN   R16 , SPL        ; Сохраняем адрес верхушки стека во временную ячейку
-	IN   R17 , SPH
-	ST   Z+  , R16
-	ST   Z   , R17
-	
-	
-	; Вычисляем смещение
-	LDI  XL  ,  low( taskStackHeader )
-	LDI  XH  , high( taskStackHeader )
-	ADD  XL  , R16
-	LDI  R16 , 0
-	ADC  XH  , R16   ;  Теперь Z содержит адрес куда можно складывать верхушку стека
-	
-	
-	; Сохраняем адрес верхушки стека
-	IN   R16 , SPL
-	IN   R17 , SPH
-	ST   X+  , R16 ; сохраяняем L,H загружать надо будет HL
-	ST   X   , R17
-	
-	LDS  R18 , tmpReturnCall1   
-	LDS  R19 , tmpReturnCall2 
-	
-	PUSH R19
-	PUSH R18
-	RETI
+     
+     push_registers      ; Пишем все регистры в стек задачи
+
+     write_stack_header_to_task     ; Вычисляем куда писать адрес верхушки стека и сохраняем его
+     
+     LDS R16, tmp_taskBreakPoint_L  ;Возвращаемся в вызвавшую программу
+	LDS R17, tmp_taskBreakPoint_H  ;
+     PUSH R17                       ;
+	PUSH R16                       ;
+	RET
 .ENDM
 
-; =========================================
-;
-; MACRO for saving context from task level
-;
-; =========================================
 
-
-.MACRO SaveContextBySelf
-	SaveContextBySelf:
-	STS tmpR16 , R16 ; Расчищаем себе пару регистров для работы
-	STS tmpR17 , R17
+.MACRO M_SaveContext_TS ; Save Context by Timer Service
+SUB_SaveContext_TS:
+	STS tmpR16 , R16 ; Сохраняем регистры в RAM. 
+	STS tmpR17 , R17 ; Нужно 4 регистра 
+	STS tmpR18 , R18 
+	STS tmpR19 , R19
 	
-	POP R16             ; Кладём адрес возврата во временную ячейку
-	POP R17
-	STS tmpReturnToTask1 , R16  
-	STS tmpReturnToTask2 , R17
+	POP R16         ; младший байт адреса откуда вызвана подпрограмма. попал в стек после CALL
+	POP R17         ; старший байт  
+     POP R18         ; младший байт адреса задачи откуда ее прервали по таймеру. попал в стек по прерыванию
+	POP R19         ; старший байт 
 	
-	PUSH R17            ; Пихаем адрес возврата обратно в стек
-	PUSH R16
+     STS tmp_RetAddr_L , R16        ; сохраним, потом по этому адресу вернёмся через RET
+	STS tmp_RetAddr_H , R17        ; 
 	
-	LDS R16 , tmpR16    ; Восстанавливаем регистры R16 R17 и  сохраняем регистры в стек задачи
+     STS tmp_taskBreakPoint_L , R18 ; сохраним. потом этот адрес запихнём на верхушку стека 
+	STS tmp_taskBreakPoint_H , R19 ; это нужно чтобы при восстановлении контекста было куда вернуться
+	
+	LDS R16 , tmpR16    ; Восстанавливаем сохранёные регистры
 	LDS R17 , tmpR17
 	LDS R18 , tmpR18
 	LDS R19 , tmpR19
 	
+     push_registers      ; Пишем все регистры в стек задачи
+                            
+     write_stack_header_to_task     ; Вычисляем куда писать адрес верхушки стека и сохраняем его
+
+	LDS  R16 , tmp_RetAddr_L       ; возвращаемся в TimerService 
+	LDS  R17 , tmp_RetAddr_H       ;
+	PUSH R17                       ;
+	PUSH R16                       ;
+	RET                            ;
+.ENDM
+
+
+
+
+
+
+
+.MACRO push_registers
 	PUSH R0
 	PUSH R1
 	PUSH R2
@@ -164,51 +99,37 @@
 	PUSH R31
 	MOV SREG, R16
 	PUSH R16
-	
+     LDS R18, tmp_taskBreakPoint_L  ; Пишем tmp_taskBreakPoint_L tmp_taskBreakPoint_H в стек задачи
+	LDS R19, tmp_taskBreakPoint_H
+     PUSH R19
+     PUSH R18
+.ENDM
+
+.MACRO write_stack_header_to_task
 	; Загружаем номер текущей задачи  и вычисляем адрес ячейки для сохранения адреса верхушки стека
 	LDS  R18 , currentTaskNumber
 	LDI  R19 , FRAMESIZE
-	LDS  ZL  , low(TaskFrame) 
-	LDS  ZH  , high(TaskFrame)
 	MUL  R18 , R19
+	
+     LDI  ZL  , low(TaskFrame) 
+	LDI  ZH  , high(TaskFrame)
 	
 	ADD  ZL  , R0
 	ADC  ZH  , R1 ; прыгнули на начало контекста задачи
 	
-	SUBI ZL  , low(-5)
-	SBCI ZH  , high(-5) ; прыгнули на адрес для сохранения верхушки стека
+	SUBI_Z   -1*TaskStackRootShift ; прыгнули на адрес для сохранения верхушки стека. два байта обозначают адрес с верхушкой стека
 	
-	IN   R16 , SPL        ; Сохраняем адрес верхушки стека во временную ячейку
+	IN   R16 , SPL        ; Сохраняем адрес верхушки стека задачи во временную ячейку
 	IN   R17 , SPH
 	ST   Z+  , R16
 	ST   Z   , R17
-	
-	; Вычисляем смещение
-	LDI  XL  , low( taskStackHeader )
-	LDI  XH  , high( taskStackHeader )
-	ADD  XL  , R16
-	LDI  R16 , 0
-	ADC  XH  , R16   ;  Теперь Z содержит адрес куда можно складывать верхушку стека
-	
-	
-	; Сохраняем адрес верхушки стека
-	IN   R16 , SPL
-	IN   R17 , SPH
-	ST   X+  , R16 ; сохраяняем L,H загружать надо будет HL
-	ST   X   , R17
-	
-	LDS  R16 , tmpReturnToTask1
-	LDS  R17 , tmpReturnToTask2
-	
-	PUSH R17
-	PUSH R16
-	RETI
+
 .ENDM
 
 .MACRO LoadContextMacro
 	CLI
 	POP R16
-	MOV SREG , R16
+	MOV R16, SREG
 	POP R31
 	POP R30
 	POP R29
@@ -241,7 +162,7 @@
 	POP R3
 	POP R1
 	POP R0
-	RETI
+	RETI ; то есть в стеке есть еще 2 байта для возврата
 .ENDM
 
 

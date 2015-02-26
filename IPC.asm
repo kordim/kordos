@@ -8,21 +8,17 @@
 ; Set Recipient task, timer = 0
 
 
-; Receive:
-; Set Up WaitForInt status register flag
-; Break task and take directions to kernel
-
-; When task return from kernel.
-; get sender id from mutex
-; get byte from buffer
-
-.MACRO SUB_Send ; _POD_ SUB_Send 
-                ; 
-                ; R16 = RECIPIENT 
-                ; R17 = DATA
+.MACRO M_SUB_Send ; _POD_ SUB_Send 
+SUB_Send:         ; _POD_ SUB_Send: Arguments:  R16=Recipient , R17=Data
+                  ; _POD_ SUB_Send: Return: None
+                  ; _POD_ SUB_Send: Reserved: ZL, ZH, R18, R0, R1 
+                  ; 
+                  ; R17 = DATA
 PUSH ZL
 PUSH ZH
 PUSH R18 ; temp register
+PUSH R0
+PISH R1
 
 LDI_Z TaskFrame
 LDI R18 , FRAMESIZE
@@ -54,9 +50,65 @@ ST        Z+  , R18
 ST        Z+  , R18
 ST        Z   , R18
 
+POP R1
+POP R0
 POP R18
 POP ZH
 POP ZL
 .ENDM
 
 
+
+; Receive:
+; Set Up WaitForInt status register flag
+; Break task and take directions to kernel
+
+; When task return from kernel.
+; get sender id from mutex
+; get byte from buffer
+
+
+.MACRO M_SUB_Recv
+SUB_Recv:
+; _POD_ SUB_Recv: Arguments: None
+; _POD_ SUB_Recv: Return: R16=Sender R17=data
+; _POD_ SUB_Recv: Reserved: ZL , ZH , R18 , R19 , R0 , R1
+PUSH ZL
+PUSH ZH
+PUSH R18
+PUSH R19
+PUSH R0
+PUSH R1
+
+; Get task context address
+LDI_Z TaskFrame
+LDI R18 , FRAMESIZE
+LDS R19 , currentTaskNumber
+MUL R18, R19
+ADD ZL , R0
+ADC ZH , R1
+
+
+; Set Wait For Int flag
+LD R18 , Z
+SBR R18 , taskWaitInt
+ST Z , R18
+
+; Take control to kernel
+CALL SUB_SaveContextBySelf
+RJMP TaskBreak
+; Return from kernel
+
+; Read data from buffer
+SUBI_Z -1*TaskRecvBufShift
+LD Z+ , R16    ; mutex value
+LD Z  , R17    ; data value
+
+POP R1
+POP R0
+POP R19
+POP R18
+POP ZH
+POP ZL
+
+.ENDM

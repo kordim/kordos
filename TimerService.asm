@@ -9,20 +9,23 @@
 ; R14 = timer byte 4 (high)
 TS_Start:
     
-    CALL SaveContextByInterrupt
+    CALL SUB_SaveContext_TS 
     
-    LDI    R10      , MAXPROCNUM                   ; Load MAXPROCNUM for cycle         
+    LDI    R16, MAXPROCNUM
+    MOV    R16, R10                         ; Load MAXPROCNUM for cycle         
+    
     LDI_X  TaskFrame              
-    LDI    R16      , (MAXPROCNUM-1)*FRAMESIZE 
-    ADDW   R16 , XL , XH                           ; shift to last task frame
+    
+    LDI    R16, (MAXPROCNUM-1)*FRAMESIZE 
+    ADDW   R16, XL , XH                     ; shift to last task frame
 
 TS_processTask:
     DEC    R10
-    BRCS   TS_END                        ; Когда прощёлкали все таймеры выходим из таймерной службы
+    BRCS   TS_END                            ; Когда прощёлкали все таймеры выходим из таймерной службы
     
-    LD     R9       , X                            ; Load TaskState register to R9
+    LD     R9, X                      ; Load TaskState register to R9
     
-    SBRC   R9       , taskWaitInt                  ; task wait interrupt, goto process next task timer
+    SBRC   R9, taskWaitInt            ; task wait interrupt, goto process next task timer
     RJMP   TS_nextTask
     
     SBRC   R9       , taskTimerIsZero              ; timer already is zero, goto process next task timer
@@ -36,7 +39,8 @@ TS_processTask:
     LD R13, X+
     LD R14, X+
     
-    SBCI R11 , 1                                   ; Decrease timer 
+    CLC
+    SUBI R11 , 1                                   ; Decrease timer 
     SBCI R12 , 0
     SBCI R13 , 0
     SUBI R14 , 0

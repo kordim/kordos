@@ -7,7 +7,7 @@ RUSH R18  ; Number of Interrupt
 ;===========
     LDI R18 , @0 ; Load interrupt number (code) to R16
     LDS R17 , currentTaskNumber
-    CALL SUB_WainForInt
+    CALL SUB_WaitForInt
 ;===========
 POP R18
 POP R17
@@ -17,7 +17,7 @@ POP ZL
 .ENDM
 
 
-SUB_WainForInt:
+SUB_WaitForInt:
 ; Get Task State Register Address
 ; Set "WaitForInt" flag in "Task State Register"
 LDI_Z     TaskFrame

@@ -1,6 +1,15 @@
 ; ============ Code Segment
 .DSEG ; Allocate RAM
-currentTaskNumber: .byte 1 ; Выделяем байт для хранения номера выполняемой задачи
+currentTaskNumber:       .byte 1 ; Выделяем байт для хранения номера выполняемой задачи
+
+tmpR16:                  .byte 1
+tmpR17:                  .byte 1
+tmpR18:                  .byte 1
+tmpR19:                  .byte 1
+tmp_RetAddr_L:           .byte 1
+tmp_RetAddr_L:           .byte 1
+tmp_taskBreakPoint_L:    .byte 1
+tmp_taskBreakPoint_H:    .byte 1
 
 TaskFrame:        ; Allocate Memory for Tasks Stacks
 Task1_state: .byte FRAMESIZE

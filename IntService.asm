@@ -88,7 +88,8 @@ RJMP NextPoolRequest          ; Decrease Pool Couner and take next request
 ; Clear Interrupt State Flags and Incoming Buffers
 ; =================================================
 ;
-LDI       R11 , MAXINTNUM
+LDI       R17 , MAXINTNUM
+MOV       R17 , R11
 LDI       R17 , 0
 LDI_Z     Int_1_Addr
 
@@ -99,8 +100,7 @@ BRCS      EndOfClear
 LD        R18 , Z
 CPI       R18 , 2             ; InteffuptFlag == 2. Need to Clear ?
 BREQ      ClearInterrupt
-SUBI      ZL  ,  low(-2)
-SBCI      ZH  , high(-2)      ;Shift Interrupt Buffer Addredd on 2 bytes ahead 
+SUBI_Z    -2             ;Shift Interrupt Buffer Addredd on 2 bytes forward to next interrupt
 RJMP      ClearNextInterrupt
 
 ClearInterrupt:
