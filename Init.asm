@@ -22,7 +22,7 @@ Task7_state: .byte FRAMESIZE
 Task8_state: .byte FRAMESIZE ; == 640 bytes
 
 ; Allocate Memory for Interrupt Buffers
-int_1_Addr:  .byte 2
+int_1_Addr:  .byte 2 ; 2 bytes: value , state_flag
 int_2_Addr:  .byte 2
 int_3_Addr:  .byte 2
 int_4_Addr:  .byte 2

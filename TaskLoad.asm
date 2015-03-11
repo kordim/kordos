@@ -42,8 +42,8 @@ TaskLoader_Load:
     SBR  taskState         , taskRun           ; Task not run. Set Bit register  "taskRun" and save task state register 
     ST   taskFrameAddr     , taskState
         
-    SUBI taskFrameAddr_L   , low(-FRAMESIZE)   ; установить голову стека задачи ( это конец стекового кадра )
-    SBCI taskFrameAddr_H   , high(-FRAMESIZE)
+    SUBI taskFrameAddr_L   , low(-1*FRAMESIZE)   ; установить голову стека задачи ( это конец стекового кадра )
+    SBCI taskFrameAddr_H   , high(-1*FRAMESIZE)
     OUT  SPL               , taskFrameAddr_L
     OUT  SPH               , taskFrameAddr_H               
         

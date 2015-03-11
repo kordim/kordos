@@ -110,5 +110,71 @@ POP R19
 POP R18
 POP ZH
 POP ZL
+RET
+.ENDM
+
+
+.MACRO M_SUB_Send
+PUSH ZL
+PUSH ZH
+PUSH R18
+PUSH R19
+PUSH R0
+PUSH R1
+
+;
+
+; R16 contain data to send
+; R17 must contain number of recipient task
+; Shift Address in Z register = TaskFrameAddress + (RecipientTaskNum * FRAMESIZE) + TaskRecvBufMutexShift
+LDI_Z TaskFrame
+LDI R18 , FRAMESIZE
+MUL R18, R17 
+ADD ZL , R0
+ADC ZH , R1
+
+LDI R18 , TaskRecvBufMutexShift 
+ADD ZL , R18
+SBRC SREG , 0
+INC  ZH
+
+SUB_Send_Load_Mutex:
+LD  Z, R18  ; Load recipient mutex. for sure if recipient ready to receive data
+CP R18 , R17 ; if recipient mutex == recipient , task ready to receive, otherwise, sending is not allowed
+BRNE SUB_Send_Wait
+
+ST  R16 , Z+ ; Store data and sender task id 
+LDS R18 , currentTaskNumber
+ST  R18 , Z
+
+; Reset recipient task timer for immediate call recipient.
+SUBI ZL, TaskRecvBufMutexShift+1 ; shift to recipient task state register address
+SBRC SREG , 0
+DEC ZH
+
+ADD ZL, TaskTimerShift ; Shift to recipient task timer address
+SBRC SREG , 0
+INC  ZH
+
+LDI R18, 0     ; Clear timer
+ST R18 , Z+
+ST R18 , Z+
+ST R18 , Z+
+ST R18 , Z+
+
+
+POP R1
+POP R0
+POP R19
+POP R18
+POP ZH
+POP ZL
+RET
+
+SUB_Send_Wait:
+CALL  CALL_SaveContextBySelf
+RJMP  TaskBreak              
+RJMP  SUB_Send_Load_Mutex  
+
 
 .ENDM
