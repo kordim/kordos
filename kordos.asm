@@ -26,6 +26,7 @@
 .INCLUDE Init.asm
 
 OutComp2Int:
+    CLI
     TimerService ; Timer Service Start
     InterruptManager ; Process Interrupts
     TaskLoader
