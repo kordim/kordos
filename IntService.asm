@@ -1,3 +1,4 @@
+.MACRO InterruptManager
 .DEF taskNum            = R18
 .DEF intNum             = R19
 .DEF intFlag            = R20
@@ -135,5 +136,4 @@ MoveReturnEnd:
 SUB_SemSetValue IntPoolCounter ; IntPoolCounter = R16 =  R10 = "Number of returned requests"
 SEI
 
-
-.EXIT
+.ENDM
