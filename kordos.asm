@@ -1,4 +1,4 @@
-;.DEVICE ATmega323
+.DEVICE ATmega323
 ;.INCLUDE "m323def.inc"
 .INCLUDE "constants.asm"
 .INCLUDE "macros.asm"
