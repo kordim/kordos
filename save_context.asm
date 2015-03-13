@@ -1,3 +1,65 @@
+.MACRO write_stack_header_to_task
+	; Загружаем номер текущей задачи  и вычисляем адрес ячейки для сохранения адреса верхушки стека
+	LDS  R18 , currentTaskNumber
+	LDI  R19 , FRAMESIZE
+	MUL  R18 , R19
+	
+     LDI  ZL  , low(TaskFrame) 
+	LDI  ZH  , high(TaskFrame)
+	
+	ADD  ZL  , R0
+	ADC  ZH  , R1 ; прыгнули на начало контекста задачи
+	
+	SUBI_Z   -1*TaskStackRootShift ; прыгнули на адрес для сохранения верхушки стека. два байта обозначают адрес с верхушкой стека
+	
+	IN   R16 , SPL        ; Сохраняем адрес верхушки стека задачи во временную ячейку
+	IN   R17 , SPH
+	ST   Z+  , R16
+	ST   Z   , R17
+
+.ENDM
+
+.MACRO push_registers
+	PUSH R0
+	PUSH R1
+	PUSH R2
+	PUSH R3
+	PUSH R4
+	PUSH R5
+	PUSH R6
+	PUSH R7
+	PUSH R8
+	PUSH R9
+	PUSH R10
+	PUSH R11
+	PUSH R12
+	PUSH R13
+	PUSH R14
+	PUSH R15
+	PUSH R16
+	PUSH R17
+	PUSH R18
+	PUSH R19
+	PUSH R20
+	PUSH R21
+	PUSH R22
+	PUSH R23
+	PUSH R24
+	PUSH R25
+	PUSH R26
+	PUSH R27
+	PUSH R28
+	PUSH R29
+	PUSH R30
+	PUSH R31
+	MOV SREG, R16
+	PUSH R16
+     LDS R18, tmp_taskBreakPoint_L  ; Пишем tmp_taskBreakPoint_L tmp_taskBreakPoint_H в стек задачи
+	LDS R19, tmp_taskBreakPoint_H
+     PUSH R19
+     PUSH R18
+.ENDM
+
 .MACRO M_SaveContextBySelf
 SUB_SaveContextBySelf:
 	STS tmpR16 , R16    ; Расчищаем себе пару регистров для работы
@@ -64,67 +126,7 @@ SUB_SaveContext_TS:
 
 
 
-.MACRO push_registers
-	PUSH R0
-	PUSH R1
-	PUSH R2
-	PUSH R3
-	PUSH R4
-	PUSH R5
-	PUSH R6
-	PUSH R7
-	PUSH R8
-	PUSH R9
-	PUSH R10
-	PUSH R11
-	PUSH R12
-	PUSH R13
-	PUSH R14
-	PUSH R15
-	PUSH R16
-	PUSH R17
-	PUSH R18
-	PUSH R19
-	PUSH R20
-	PUSH R21
-	PUSH R22
-	PUSH R23
-	PUSH R24
-	PUSH R25
-	PUSH R26
-	PUSH R27
-	PUSH R28
-	PUSH R29
-	PUSH R30
-	PUSH R31
-	MOV SREG, R16
-	PUSH R16
-     LDS R18, tmp_taskBreakPoint_L  ; Пишем tmp_taskBreakPoint_L tmp_taskBreakPoint_H в стек задачи
-	LDS R19, tmp_taskBreakPoint_H
-     PUSH R19
-     PUSH R18
-.ENDM
 
-.MACRO write_stack_header_to_task
-	; Загружаем номер текущей задачи  и вычисляем адрес ячейки для сохранения адреса верхушки стека
-	LDS  R18 , currentTaskNumber
-	LDI  R19 , FRAMESIZE
-	MUL  R18 , R19
-	
-     LDI  ZL  , low(TaskFrame) 
-	LDI  ZH  , high(TaskFrame)
-	
-	ADD  ZL  , R0
-	ADC  ZH  , R1 ; прыгнули на начало контекста задачи
-	
-	SUBI_Z   -1*TaskStackRootShift ; прыгнули на адрес для сохранения верхушки стека. два байта обозначают адрес с верхушкой стека
-	
-	IN   R16 , SPL        ; Сохраняем адрес верхушки стека задачи во временную ячейку
-	IN   R17 , SPH
-	ST   Z+  , R16
-	ST   Z   , R17
-
-.ENDM
 
 .MACRO LoadContextMacro
 	CLI

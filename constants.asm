@@ -28,4 +28,3 @@
 
 .EQU FRAMESIZE = 80 ; Length of task context
 .EQU MAXINTNUM = 20 ; Define Maximun number of used interrupts
-

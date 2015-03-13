@@ -1,5 +1,5 @@
-.DEVICE ATmega323
-;.INCLUDE "m323def.inc"
+;.DEVICE ATmega323
+.INCLUDE "m323def.inc"
 .INCLUDE "constants.asm"
 .INCLUDE "macros.asm"
 
@@ -13,15 +13,13 @@ SEI
 ; =====================
 
 .INCLUDE "Init.asm"
-
-
 dummy_Loop: ; В самом начале покрутимся здесь пока не получим Таймерное прерывание
 NOP
 NOP
 NOP
 RJMP dummy_loop ; 
 
-
+.EXIT
 ;
 ; Core files
 ; ==========

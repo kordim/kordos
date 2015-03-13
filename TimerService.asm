@@ -36,10 +36,11 @@ TS_Start:
     
     ; Set address pointer to last task
     LDI_X  TaskFrame              
-    LDI    R16, (MAXPROCNUM-1)*FRAMESIZE 
-    ADD    XL, R16
-    SBRC   SREG , 0
-    INC    XH
+    LDI    R16, MAXPROCNUM-1 
+    LDI    R17, FRAMESIZE
+    MUL    R16, R17
+    ADD    XL, R0
+    ADC    XH, R1
     
 TS_processTask:
     DEC    R10
