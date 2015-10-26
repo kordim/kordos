@@ -1,7 +1,7 @@
 ;.DEVICE ATmega323
-.INCLUDE "m323def.inc"
-.INCLUDE "constants.asm"
-.INCLUDE "macros.asm"
+;.INCLUDE "C:\AVR\GitHub\kordos\m323def.inc"
+.INCLUDE "C:\AVR\GitHub\kordos\constants.asm"
+.INCLUDE "C:\AVR\GitHub\kordos\macros.asm"
 
 Reset: 
 OUTI SPL , low(RAMEND)
@@ -12,7 +12,7 @@ SEI
 ; System Init and Start
 ; =====================
 
-.INCLUDE "Init.asm"
+.INCLUDE "C:\AVR\GitHub\kordos\Init.asm"
 dummy_Loop: ; В самом начале покрутимся здесь пока не получим Таймерное прерывание
 NOP
 NOP
@@ -23,11 +23,11 @@ RJMP dummy_loop ;
 ;
 ; Core files
 ; ==========
-.INCLUDE "save_context.asm"
+.INCLUDE "C:\AVR\GitHub\kordos\save_context.asm"
 .EXIT
-.INCLUDE "TimerService.asm"
-.INCLUDE "TaskLoad.asm"
-.INCLUDE "IntService.asm"
+.INCLUDE "C:\AVR\GitHub\kordos\TimerService.asm"
+.INCLUDE "C:\AVR\GitHub\kordos\TaskLoad.asm"
+.INCLUDE "C:\AVR\GitHub\kordos\IntService.asm"
 
 OutComp2Int:
     CLI
@@ -42,12 +42,12 @@ OutComp2Int:
 ;
 ; System calls
 ; ============
-.INCLUDE "Sleep.asm"
-.INCLUDE "WaitForInt.asm"
-.INCLUDE "IPC.asm"
-.INCLUDE "SemCounter.asm"
-.INCLUDE "SemMutex.asm"
-.INCLUDE "Tasks.asm"
+.INCLUDE "C:\AVR\GitHub\kordos\Sleep.asm"
+.INCLUDE "C:\AVR\GitHub\kordos\WaitForInt.asm"
+.INCLUDE "C:\AVR\GitHub\kordos\IPC.asm"
+.INCLUDE "C:\AVR\GitHub\kordos\SemCounter.asm"
+.INCLUDE "C:\AVR\GitHub\kordos\SemMutex.asm"
+.INCLUDE "C:\AVR\GitHub\kordos\Tasks.asm"
 
 
 

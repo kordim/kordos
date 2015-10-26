@@ -1,0 +1,7 @@
+
+AVRASM ver. 2.1.57  C:\Users\Дмитрий\Documents\GitHub\kordos\Kordim_avr_os\Kordim_avr_os\Kordim_avr_os.asm Sat Mar 14 08:20:10 2015
+
+[builtin](2): Including file 'C:\Program Files (x86)\Atmel\Atmel Toolchain\AVR Assembler\Native\2.1.1175\avrassembler\Include\m32def.inc'
+C:\Users\Дмитрий\Documents\GitHub\kordos\Kordim_avr_os\Kordim_avr_os\Kordim_avr_os.asm(9): Including file 'C:\Users\Дмитрий\Documents\GitHub\kordos\kordos.asm'
+C:\Users\Дмитрий\Documents\GitHub\kordos\kordos.asm(4): error: Cannot find include file: C:\Users\Р”РјРёС‚СЂРёР№\Documents\GitHub\kordos\constants.asm
+C:\Users\Дмитрий\Documents\GitHub\kordos\Kordim_avr_os\Kordim_avr_os\Kordim_avr_os.asm(9): 'C:\Users\Дмитрий\Documents\GitHub\kordos\kordos.asm' included form here
