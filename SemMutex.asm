@@ -29,15 +29,15 @@
     POP  ZL
 .ENDM
 
-.MACRO IPC_MutexUp          ; _POD_ IPC_MutexUp SetUp Mutex Value. Value to set taken from R16
+IPC_MutexUp:          ; _POD_ IPC_MutexUp SetUp Mutex Value. Value to set taken from R16
     PUSH  R17
     LD    R17 , Z           ; Загрузили значение семафора
 
 IPC_MutexCheckUp:
     CPI   R17 , 0           ; Проверили опущен ли флаг
-    
+
     BREQ  IPC_MutexSet       ; Если семафор опущен то взводим его
-    CALL  CALL_SaveContextBySelf
+    CALL  SUB_SaveContextBySelf
     RJMP  TaskBreak          ; Если семафор поднят то ждём когда он опустится, отдаём управление ядру
     RJMP  IPC_MutexCheckUp   ; После возврата из ядра идём опять в проверку семафора
 
@@ -45,7 +45,7 @@ IPC_MutexSet:
     ST    Z  , R16
     POP   R17
     RET
-.ENDM
+
 
 ; Dowm Mutex
 ; ==========
@@ -73,7 +73,4 @@ IPC_MutexSet:
     POP   R17
     RET
 .ENDM
-
-
-.EXIT
-                
+        

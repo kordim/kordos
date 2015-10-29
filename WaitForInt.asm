@@ -27,8 +27,7 @@ ADD ZL  , R0
 ADC ZH  , R1
 
 LD  R16 , Z              ; Load Task State reister
-SBR R16 , taskWaitInt    ; Set "WainForInt" flag
-;ORI R16 , 1<<taskWaitInt ; Set "WainForInt" flag
+SBR R16 , 1<<taskWaitInt    ; Set "WainForInt" flag
 ST  Z   , R16            ; Save Task register
 
 ; Add Task request to queue
@@ -38,12 +37,19 @@ ST  Z   , R16            ; Save Task register
 ; store interrupt number
 ; increase semaphore number
 
-SUB_GetSemValue IntPoolCounter
+SUB_SemGetValue IntPoolCounter
 LDI_Z IntPoolAddr
+
 LSL R16
-ADD_Z_R16
-LSR R16
+ADD ZL, R16
+CLR R16
+ADC ZH, R16
+
+
 ST  Z+ , R17
 ST  Z  , R18
 SUB_SemUp IntPoolCounter
+		NOP
+		NOP
+		NOP
 RETI

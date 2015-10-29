@@ -1,46 +1,122 @@
-; System call Sleep
-; =================
-;
-; SUB_Sleep call example:
-; LDS R16 , currentTaskNum
-; LDI R17 , 100
-; LDI R18 , 0
-; LDI R19 , 0
-; LDI R20 , 0
+; New sleep call
+; Timer procedure takes timer value from stack
+; How to call: 
+; PUSH R16 ; low byte
+; PUSH R17
+; PUSH R18
+; PUSH R19 ; high byte
 ; CALL SUB_Sleep
 SUB_Sleep: 
-    ; _POD_  SUB_Sleep: Arguments: taskNumber=R16, timerByte1(Low)=R17, timerByte2=R18, timerByte3=R19, timerByte4(Low)=R20 
-    ; _POD_  SUB_Sleep: Reserved: ZL, ZH , R0 , R1 (Stack 4 bytes )
-    
-    PUSH ZL
-    PUSH ZH
-    PUSH R0
-    PUSH R1
 
-    LDI ZL  , low(TaskFrame)  ; Вычисляем адрес таймера текущей задачи и смещаемся на него
-    LDI ZH  , high(TaskFrame)
-    MOV R15 , R16
-    LDI R16 , FRAMESIZE
-    MUL R15 , R16
-    ADD ZL , R0
-    ADC ZH , R1
-    SUBI ZL, low(-1*TaskTimerShift)
-    SUBI ZH, high(-1*TaskTimerShift)
-    
-    ST Z+ , R17
-    ST Z+ , R18
-    ST Z+ , R19
-    ST Z+ , R20
+BRID
+RJMP sleep_interrupt_is_disabled
+CLI
+STS R16 , tR16
+LDI R16, 1
+STS R16 , globalInterruptStateOnCall
+LDS R16 , tR16
+RJMP sleep_start
 
-    ; Take control to core
-    CALL       SUB_SaveContextBySelf   ; Semaphore reach maximal value, wait until semaphore is down
-    RJMP       TaskBreak	              ; 
+sleep_interrupt_is_disabled:
+	CLI
+	STS R16 , tR16
+	LDI R16, 0
+	STS R16 , globalInterruptStateOnCall
+	LDS R16 , tR16
 
-    ; Return From Core and continue.
+sleep_start:
+	STS ZL, tZL
+	STS ZL, tZL
+	STS R0, tR0
+	STS R1, tR1
+	STS R16, tR16
+	IN R16, SREG
+	STS R16, tSREG
 
-    POP R1
-    POP R0
-    POP ZH
-    POP ZL
-    RET
+	POP ZH
+	POP ZL
+	
+	POP R0 ; high byte
+	POP R1
+	POP R16
+	POP R17 ; low byte
 
+	; Save return address to stack
+	PUSH ZL
+	PUSH ZH ; адрес возврата сохранен
+
+	; Save registers from RAM to stack
+	LDS tZL, ZL
+	PUSH ZL
+	
+	LDS tZH, ZL
+	PUSH ZL
+	
+	LDS tR0 ZL
+	PUSH ZL
+	
+	LDS tR1, ZL
+	PUSH ZL
+	
+	LDS tR16 ZL
+	PUSH ZL
+	
+	LDS tR17, ZL
+	PUSH ZL
+	
+	OUT ZL, tSREG
+	PUSH ZL
+
+	; Save timer value to stack
+	PUSH R0	; high byte
+	PUSH R1
+	PUSH R16
+	PUSH R17  ; low byte
+	
+	LDI ZL, low(TaskFrame)
+	LDI ZH, high(TaskFrame)
+
+	SUBI ZL, low(-1*TaskTimerShift)
+	SUBI ZH, high(-1*TaskTimerShift)
+
+	LDS R16, currentTaskNum
+	LDI R17, FRAMESIZE
+	MUL R16,R17
+	ADD ZL, R0
+	ADC ZH, R1
+
+	POP R16
+	ST Z+ , R16 ; low byte
+	POP R16
+	ST Z+ , R16
+	POP R16
+	ST Z+ , R16
+	POP R16
+	ST Z+ , R16
+
+	; Take control to core
+	
+	CALL       SUB_SaveContextBySelf   ; Semaphore reach maximal value, wait until semaphore is down
+	CLI
+	RJMP       TaskBreak	              ; 
+	
+
+	;Restore Task Context	
+	POP R16 
+	IN SREG, R16
+	POP R17	
+	POP R16
+	POP R1
+	POP R0
+	POP ZH
+
+	LDS globalInterruptStateOnCall, ZL
+	TST ZL
+	BRNE sleep_return_and_restore_interrupts
+	POP ZL
+	RET
+
+sleep_return_and_restore_interrupts:
+	POP ZL
+	RETI
+	; #######################################################

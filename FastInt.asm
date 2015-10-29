@@ -10,7 +10,10 @@ int_1_proc:
     POP R16
     POP ZH
     POP ZL
-    RETI
+    		NOP
+		NOP
+		NOP
+	RETI
 
 int_2_proc:
     CLI
@@ -30,7 +33,10 @@ int_2_proc:
     POP R16
     POP ZH
     POP ZL
-    RETI
+    		NOP
+		NOP
+		NOP
+	RETI
 
 
 

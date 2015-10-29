@@ -1,7 +1,7 @@
 .MACRO OUTI	
 	LDI R16  , @1
 	OUT @0   , R16 
-.ENDMACRO		
+.ENDM	
 				
 .MACRO LDI_Z
     LDI  ZL   , low(@0)
@@ -18,20 +18,6 @@
     LDI  @2   , high(@0)
 .ENDM
 
-.MACRO ADD_Z_R16 ; doc: MACRO: ADD_Z_R16  Add R16 to Z register with carry uses R16 register for
-    CLC
-    ADD  ZL   , R16 
-    SBRC SREG , 0
-    INC  ZH
-.ENDM
-
-.MACRO ADDW ; _POD_ ADDW Usage: ADDW R16 ZL ZH
-    CLC
-    ADD  @1   , @0
-    SBRC SREG , 0
-    INC  @2
-.ENDM
-
 .MACRO SUBI_X ; uses registers: R16, ZL, ZH
     SUBI XL   , low(@0)
     SBCI XH   , high(@0)
@@ -42,8 +28,9 @@
     SBCI ZH   , high(@0)
 .ENDM
 
-.MACRO EXIT
+.MACRO TASK_EXIT
     JMP  TaskLoader_TaskExit
+	NOP
 .ENDM
 
 .MACRO getTaskAddrZ 
@@ -73,5 +60,23 @@
    .UNDEF tmp        
    .UNDEF Return_L   
    .UNDEF Return_H   
+
+.ENDM
+
+
+
+.MACRO MACRO_RAM_Flush
+RAM_Flush:    
+    LDI    ZL,Low(SRAM_START)
+    LDI    ZH,High(SRAM_START)
+    CLR    R16
+Flush:
+    ST     Z+,R16
+    CPI    ZH,High(RAMEND)
+    BRNE  Flush
+    CPI    ZL,Low(RAMEND)
+    BRNE    Flush
+    CLR    ZL
+    CLR    ZH
 
 .ENDM

@@ -1,22 +1,14 @@
 ; Increase semaphore by 1 
 ; =======================
 ;
-.MACRO SUB_SemUp   
-    PUSH ZL
-    PUSH ZH
-    LDI  ZL , low(@0)
-    LDI  ZH , high(@0)
-    CALL IPC_SemUp
-    POP  ZH
-    POP  ZL
-.ENDM
 
-.MACRO IPC_SemUp        ; _POD_ IPC_SemUp: Increase Semaphore value by 1
-                        ; _POD_ IPC_SemUp: Semaphore address must be in Z before call
-    PUSH       R16      
+IPC_SemUp:
+; _POD_ IPC_SemUp: Increase Semaphore value by 1
+; _POD_ IPC_SemUp: Semaphore address must be in Z before call
+	PUSH       R16      
     PUSH       R17
-
     LD         R17 , Z+	; R17 = Limit
+
 IPC_SemUpCheck:
     LD         R16 , Z	; R16 = Value   
     CP         R16 , R17                ; Semaphore == maximum value ???
@@ -29,25 +21,26 @@ IPC_SemUpCheck:
 IPC_SemInc:
     INC        R16                     
     ST         Z , R16                
-    
     POP        R17
     POP        R16
     RET
-.ENDM
+;.ENDM
 
-; Decrease semaphore by 1
-; =======================
-;
-.MACRO SUB_SemDown
+.MACRO SUB_SemUp   
     PUSH ZL
     PUSH ZH
     LDI  ZL , low(@0)
     LDI  ZH , high(@0)
-    CALL IPC_SemDown
+    CALL IPC_SemUp
     POP  ZH
     POP  ZL
 .ENDM
-.MACRO IPC_SemDown
+
+
+; Decrease semaphore by 1
+; =======================
+;
+IPC_SemDown:
     PUSH R16              
     LD   R16 , Z+	 	 ; Load semaphore limit to R16
     LD   R16 , Z		 ; Load semaphore value to R16  
@@ -58,6 +51,15 @@ IPC_SemInc:
     IPC_SemDownRet:    
     POP  R16
     RET
+
+.MACRO SUB_SemDown
+    PUSH ZL
+    PUSH ZH
+    LDI  ZL , low(@0)
+    LDI  ZH , high(@0)
+    CALL IPC_SemDown
+    POP  ZH
+    POP  ZL
 .ENDM
 
 ; Direct set semaphore value from R16 
